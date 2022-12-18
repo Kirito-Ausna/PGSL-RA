@@ -1,35 +1,28 @@
+import pdb
+import sys
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import sys
-import pdb
 
-from models.encoders.embedder import (
-    DecoyAngleEmbedder,
-    DecoyPairEmbedder,
-    AtomEmbLayer,
-    DecoyPairStack,
-    DecoyPointwiseAttention,
-    InputEmbedder,
-    RecyclingEmbedder,
-    OuterProductMean,
-)
-
-from models.backbone.constrformer import ConstrainFormer
-
-from models.backbone.structure_module import (
-    StructureModule
-)
+from data.data_transform import (atom14_to_atom37, atom37_to_rigids,
+                                 pseudo_beta_fn)
+from data.feature_pipeline import (build_decoy_angle_feats,
+                                   build_decoy_pair_feats)
 from models._base import register_model
-from data.data_transform import atom14_to_atom37, atom37_to_rigids, pseudo_beta_fn
+from models.backbone.constrformer import ConstrainFormer
+from models.backbone.structure_module import StructureModule
+from models.encoders.embedder import (AtomEmbLayer, DecoyAngleEmbedder,
+                                      DecoyPairEmbedder, DecoyPairStack,
+                                      DecoyPointwiseAttention, InputEmbedder,
+                                      OuterProductMean, RecyclingEmbedder)
+from modules.common.so3 import rotation_to_so3vec, so3vec_to_rotation
+from modules.diffusion.transition import PositionTransition, RotationTransition
 from openfold.utils.rigid_utils import Rigid, Rotation
 from utils import residue_constants
-from modules.common.so3 import rotation_to_so3vec, so3vec_to_rotation
-from modules.diffusion.transition import (
-    RotationTransition,
-    PositionTransition
-)
+
+
 @register_model("denoise_module")
 class DenoiseModule(nn.Module):
     """
@@ -49,6 +42,8 @@ class DenoiseModule(nn.Module):
 
         self.config = config.model
         decoy_config = self.config.decoy
+        # self.data_config = config.data
+        self.data_config = config.data.decoy
         self.globals = config.globals
         self.num_steps = self.globals.num_steps
 
@@ -100,12 +95,20 @@ class DenoiseModule(nn.Module):
         # pdb.set_trace()
         s = torch.sum(F.softmax(self.esm_weights) * esm_embedding, dim=1) # [B,N,5120]
         s = self.input_embedder(s,seq_mask)
+        # pdb.set_trace()
+        batch = build_decoy_angle_feats(batch)
+        decoy_pair_feats = build_decoy_pair_feats(
+                batch,
+                inf=self.data_config.inf,
+                eps=self.data_config.eps,
+                **self.data_config.distogram
+            )
         #updated embedding
         decoy_angle_feats = self.decoy_atom_embedder(batch)
         a = self.decoy_angle_embedder(decoy_angle_feats) + s
         # a = self.decoy_seq_stack(a)
         decoy_embeds["angle"] = a
-        decoy_pair_feats = batch["decoy_pair_feats"]
+        # decoy_pair_feats = batch["decoy_pair_feats"]
         z = self.OuterProductMean(a[:,None,...], seq_mask[:,None,...])
         d = self.decoy_pair_embedder(decoy_pair_feats)
         decoy_embeds["pair"] = d

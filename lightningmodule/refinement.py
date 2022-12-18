@@ -1,17 +1,15 @@
 import pytorch_lightning as pl
 import torch
+
 # from models.denoise_module import DenoiseModule
 from lightningmodule._base import register_task
+from models._base import get_model
 from utils import residue_constants
 from utils.loss import RefineDiffLoss, lddt_ca
-from utils.superimposition import superimpose
-from utils.validation_metrics import (
-    drmsd,
-    gdt_ts,
-    gdt_ha
-)
 from utils.lr_scheduler import AlphaFoldLRScheduler
-from models._base import get_model
+from utils.superimposition import superimpose
+from utils.validation_metrics import drmsd, gdt_ha, gdt_ts
+
 
 @register_task("refine_diff")
 class RefineDiffWrapper(pl.LightningModule):
@@ -21,6 +19,7 @@ class RefineDiffWrapper(pl.LightningModule):
         self.model = get_model(config.globals.model_class)(config)
         self.loss = RefineDiffLoss(config.loss)
         self.last_lr_step = -1
+        self.train_config = config.train
     
     def forward(self, batch):
         return self.model(batch)
@@ -188,6 +187,7 @@ class RefineDiffWrapper(pl.LightningModule):
         # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=10)
         lr_scheduler = AlphaFoldLRScheduler(
             optimizer,
+            **self.train_config,
         )
         
         return {

@@ -2,7 +2,7 @@ import copy
 
 import ml_collections as mlc
 
-from modules.config._base import register_config
+from config._base import register_config
 
 
 def set_inf(c, inf):

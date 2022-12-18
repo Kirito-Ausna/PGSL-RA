@@ -1,19 +1,24 @@
 import sys
+
 # from Manifold.openfold.data.input_pipeline import compose
 sys.path.append("..")
-from utils import protein
-from typing import Any, Mapping, Optional, Sequence, Dict
-import numpy as np
+import copy
 import logging
-from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn
-from data import data_transform
+import pdb
+from typing import Any, Dict, Mapping, Optional, Sequence
+
+import ml_collections
+import numpy as np
 import torch
 import torch.nn as nn
+
+from data import data_transform
+from utils import protein
 from utils import residue_constants as rc
-from utils.rigid_utils import Rotation, Rigid
-import ml_collections
-import copy
-import pdb
+from utils.rigid_utils import Rigid, Rotation
+
+from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn
+
 TensorDict = Dict[str, torch.Tensor]
 FeatureDict = Mapping[str, np.ndarray]
 ModelOutput = Mapping[str, Any]  # Is a nested dict.
@@ -214,7 +219,7 @@ def process_decoy(
     # decoy_feats["decoy_rigids"] = data_transform.atom37_to_rigids(decoy_feats["decoy_aatype"], decoy_feats["decoy_all_atom_positions"], decoy_feats["decoy_all_atom_mask"])
     # pdb.set_trace()
 
-
+    # pdb.set_trace()
     return decoy_feats
 
 def nonensembled_transform_fns():

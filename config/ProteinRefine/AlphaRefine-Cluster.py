@@ -1,6 +1,9 @@
 import copy
+
 import ml_collections as mlc
-from modules.config._base import register_config
+
+from config._base import register_config
+
 
 def set_inf(c, inf):
     for k, v in c.items():
@@ -9,7 +12,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("AlphaRefine-Local")
+@register_config("AlphaRefine-Cluster")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -32,12 +35,12 @@ config = mlc.ConfigDict(
         "data":{
             "dataset":{
                 "name": "DeepAccNet",
-                "train_targets_path": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/train_proteins.npy",
-                "eval_targets_path": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/valid_proteins.npy",
+                "train_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/train_proteins.npy",
+                "eval_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/valid_proteins.npy",
                 "predict_targets_path": None,
-                "root_dir": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/pdbs/",
-                "gfeat_save_dir": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/gfeat/",
-                "esm_save_dir": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/esm/",
+                "root_dir": "/huangyufei/Dataset/GNNRefine_Dataset/pdbs/",
+                "gfeat_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/gfeat/",
+                "esm_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/seq_esm_feature/",
                 "include_native": False,
                 "training_mode": True,
                 "eval": True,
@@ -90,6 +93,8 @@ config = mlc.ConfigDict(
                     "label_rigidgroups_group_is_ambiguous": [NUM_RES, None],
                     "label_rigidgroups_gt_exists": [NUM_RES, None],
                     "label_rigidgroups_gt_frames": [NUM_RES, None, None, None],
+                  	"node": [NUM_RES, None],
+                  	"edge": [NUM_RES, NUM_RES, None],
                 }
             },
             "predict": {
@@ -116,7 +121,7 @@ config = mlc.ConfigDict(
             },
             "data_module":{
                 "train_dataloader": {
-                    "batch_size": 2,
+                    "batch_size": 12,
                     "num_workers": 16,
                 },
                 "val_dataloader":{
@@ -219,7 +224,7 @@ config = mlc.ConfigDict(
                 "c_hidden_pair_att": 32,
                 "no_heads_msa": 8,
                 "no_heads_pair": 4,
-                "no_blocks": 9,
+                "no_blocks": 1,
                 "transition_n": 4,
                 "msa_dropout": 0.15,
                 "pair_dropout": 0.25,
@@ -306,6 +311,13 @@ config = mlc.ConfigDict(
                 "enabled": tm_enabled,
             },
             "eps": eps,
+        },
+        "train":{
+            "base_lr": 0.,
+            "max_lr": 0.001,
+            "warmup_no_steps": 960,
+            "start_decay_after_n_steps":9600,
+            "decay_every_n_steps": 320, 
         }
     }
 )

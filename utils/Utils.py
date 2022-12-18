@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-import logging
-import os, pickle
-from turtle import shape
-import numpy as np
-import Bio.PDB
-from Bio import SeqIO
-from Bio.PDB.DSSP import DSSP
-import warnings
-import torch
 # import esm
 import logging
+import os
 import pdb
+import pickle
+import warnings
+from turtle import shape
+
+import Bio.PDB
+import numpy as np
+import torch
+from Bio import SeqIO
+from Bio.PDB.DSSP import DSSP
 
 warnings.filterwarnings("ignore")
 
@@ -24,7 +25,7 @@ def get_seqs_from_pdb(pdb_file):
 
 RESIDUE_TYPES = ['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','X']
 def get_esm_embedding(seq, pname, save_path="/usr/commondata/local_public/GNNRefine_Dataset/seq_esm_feature/"):
-        file_path = save_path + pname + ".pt"
+        file_path = os.path.join(save_path, pname+".pt")
         if not os.path.exists(file_path):
             esm_data = [
                 ("protein_current", seq)
@@ -114,7 +115,7 @@ def get_DSSP_label(decoy_file, res_range, invalid_value=-1):
             Dihedrals[res_index-res_range[0]] = [phi, psi]
     except:
         SS3s, RSAs, Dihedrals = np.zeros((res_num, 3)), np.zeros((res_num, 1)), np.zeros((res_num, 2))
-        logging.info(f"DSSP Failed, the file is {decoy_file}")
+        # logging.info(f"DSSP Failed, the file is {decoy_file}")
 
     # convert degree to radian
     Dihedrals[Dihedrals==360.0] = 0

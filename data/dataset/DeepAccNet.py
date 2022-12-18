@@ -9,9 +9,9 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import Dataset
 
+from data.dataset._base import register_dataset
 from data.feature_pipeline import (process_decoy, process_features,
                                    process_label)
-from data.dataset._base import register_dataset
 from utils import Utils
 from utils.protein import get_seqs_from_pdb
 from utils.tenor_utils import dict_multimap
@@ -37,6 +37,8 @@ class Data(Dataset):
         self.include_native = self.dataset_config.include_native
         self.config = config
         self.gfeat_save_dir = config.dataset.gfeat_save_dir
+        if not os.path.exists(self.gfeat_save_dir):
+            os.makedirs(self.gfeat_save_dir)
         self.esm_save_dir = config.dataset.esm_save_dir
         self.feat_class = {'seq': {'node': ['rPosition',], 'edge': ['SepEnc']},
                            'struc': {'node': ['SS3', 'RSA', 'Dihedral'], 
@@ -126,7 +128,7 @@ class Data(Dataset):
         seq_len = self.length[pname]
         # Add GNNRefine Features, node as single feature, edge as pair feature
         feature = {"node": None, "edge": None}
-        file_path = os.path.join(self.gfeat_save_path, pname + ".pt")
+        file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
         if not os.path.exists(file_path):
             # seq feature
             seq_node_feat, seq_edge_feat, seq_len, seq = self.__get_seq_feature(pdb_file, pname)
@@ -158,7 +160,7 @@ class Data(Dataset):
             feats = torch.load(file_path)
             seq=None
         # ESM feature
-        feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_path)
+        feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
         
 
         return feats

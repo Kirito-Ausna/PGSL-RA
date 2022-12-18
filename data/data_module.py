@@ -1,12 +1,15 @@
-from functools import partial
-import numpy as np
-import torch
-from utils.tenor_utils import dict_multimap
-from data.feature_pipeline import process_features
-from typing import Optional, Dict, Any, List, Mapping
-import ml_collections as mlc
-import pytorch_lightning as pl
 import pdb
+from functools import partial
+from typing import Any, Dict, List, Mapping, Optional
+
+import ml_collections as mlc
+import numpy as np
+import pytorch_lightning as pl
+import torch
+
+from data.feature_pipeline import process_features
+from utils.tenor_utils import dict_multimap
+
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 from data.dataset._base import get_dataset
@@ -57,7 +60,7 @@ class UnifiedDataModule(pl.LightningDataModule):
         return collate_fn
 
     def train_dataloader(self):
-        if(self.train_targets is not None):
+        if(self.train_dataset is not None):
             return torch.utils.data.DataLoader(
                 self.train_dataset,
                 batch_size=self.config.data_module.train_dataloader.batch_size,

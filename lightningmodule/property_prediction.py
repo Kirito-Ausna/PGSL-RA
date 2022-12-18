@@ -1,15 +1,18 @@
+import os
+import pdb
+
 import pytorch_lightning as pl
+import torch
+import torchmetrics
+from torch.nn import functional as F
+
+from downstream.property_prediction import MultipleBinaryClassification
+from lightningmodule._base import register_task
 # from models.alpha_encoder import AlphaEncoder
 from models._base import get_model
-from downstream.property_prediction import MultipleBinaryClassification
-from torch.nn import functional as F
-import torchmetrics
-import torch
-from utils.lr_scheduler import AlphaFoldLRScheduler
 from modules import metrics
-import pdb
-import os
-from lightningmodule._base import register_task
+from utils.lr_scheduler import AlphaFoldLRScheduler
+
 
 @register_task("mbclassify")
 class MultiBClassifyWrapper(pl.LightningModule):
@@ -22,11 +25,12 @@ class MultiBClassifyWrapper(pl.LightningModule):
             self.heads.model.eval()
             for param in self.heads.model.parameters():
                 param.requires_grad = False
-        self.tasks = self.config.downstream.model.task_num
+        self.tasks = self.config.downstream.head.task_num
         self.last_lr_step = -1
         self.metrics = config.downstream.metric
         self.define_metrics()
         self.preprocess()
+        self.train_config = config.train
 
     def define_metrics(self):
         for _metric in self.metrics:
@@ -42,7 +46,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         """
         Compute the weight for each task on the training set.
         """
-        save_path = "/usr/commondata/local_public/protein-datasets/EnzymeCommission/"
+        save_path = self.config.data.dataset.root_path
         task_weight_path = save_path + "task_weight.pt"
         pos_weight_path = save_path + "pos_weight.pt"
         
@@ -54,8 +58,8 @@ class MultiBClassifyWrapper(pl.LightningModule):
                     values.append(data["targets"])
                 values = torch.stack(values, dim=0)
                 num_pos = values.sum(dim=0)
-                task_weight = (num_pos.mean() / num_pos).clamp(1, 10)
-                pos_weight = ( train_size - num_pos / num_pos).clamp(1, 10)
+                task_weight = (num_pos.mean() / num_pos).clamp(1, 60)
+                pos_weight = ( train_size - num_pos / num_pos).clamp(1, 60)
                 torch.save(task_weight, task_weight_path)
                 torch.save(pos_weight, pos_weight_path)
                 # pdb.set_trace()
@@ -134,10 +138,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=10)
         lr_scheduler = AlphaFoldLRScheduler(
             optimizer,
-            max_lr=1e-4,
-            warmup_no_steps=1,
-            start_decay_after_n_steps=15000,
-            decay_every_n_steps= 512,
+            **self.train_config,
         )
         
         return {

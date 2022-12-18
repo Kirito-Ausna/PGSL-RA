@@ -1,5 +1,5 @@
 _CONFIGS_DICT = {}
-
+# print(_CONFIGS_DICT)
 # Second level decorator
 def register_config(name):  
     def decorator(cls):

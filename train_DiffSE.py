@@ -1,22 +1,25 @@
 # Filter out the DEBUG messages
 import logging
+
 mpl_logger = logging.getLogger("matplotlib")
 mpl_logger.setLevel(logging.WARNING)
 import argparse
 import os
+# from pytorch_lightning.callbacks import StochasticWeightAveraging
+import pdb
 import random
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from modules.config._base import get_config
-from pytorch_lightning.utilities.seed import seed_everything
-from data.data_module import UnifiedDataModule
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.plugins.training_type import DeepSpeedPlugin, DDPPlugin
-# from pytorch_lightning.callbacks import StochasticWeightAveraging
-import pdb
+from pytorch_lightning.plugins.training_type import DDPPlugin, DeepSpeedPlugin
+from pytorch_lightning.utilities.seed import seed_everything
+
+from config._base import get_config
+from data.data_module import UnifiedDataModule
 from lightningmodule._base import get_task
 
 
@@ -36,7 +39,7 @@ def main(args):
         seed_everything(args.seed, workers=True)
 
     # model config details now give the users to specify
-    config = get_config(args.task)()
+    config = get_config(args.config_name)()
 
     ## The Dataset interfaces are not the same and lack a unified model initialize interface
     #TODO: Make the interfaces the same √
@@ -109,9 +112,9 @@ def main(args):
     else:
         ckpt_path = args.resume_from_ckpt
     
-    if(args.encoder_model_checkpoint is not None):
-        encoder_model_state_dict = torch.load(args.encoder_model_checkpoint)["state_dict"]
-        pdb.set_trace()
+    if(config.downstream.pretrain):
+        encoder_model_state_dict = torch.load(config.downstream.encoder_checkpoint)["state_dict"]
+        #pdb.set_trace()
         model_module.heads.load_state_dict(encoder_model_state_dict, strict=False)
 
     # model_module.preprocess()
@@ -162,10 +165,10 @@ if __name__ == "__main__":
         "--resume_from_ckpt", type=str, default=None,
         help="Path to a model checkpoint from which to restore training state"
     )
-    parser.add_argument(
-        "--encoder_model_checkpoint", type=str, default=None,
-        help="Path to a pretrained Encoder model checkpoint"
-    )
+    # parser.add_argument(
+    #     "--encoder_model_checkpoint", type=str, default=None,
+    #     help="Path to a pretrained Encoder model checkpoint"
+    # )
     parser.add_argument(
         "--resume_model_weights_only", type=bool_type, default=False,
         help="Whether to load just model weights as opposed to training state"

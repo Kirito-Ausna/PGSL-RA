@@ -201,7 +201,7 @@ class Data(Dataset):
         pdb_file = self.pdb_files[index]
         # Add GNNRefine Features, node as single feature, edge as pair feature
         feature = {"node": None, "edge": None}
-        file_path = os.path.join(self.gfeat_save_path, pname + ".pt")
+        file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
         if not os.path.exists(file_path):
             # seq feature
             seq_node_feat, seq_edge_feat, seq_len, seq = self.__get_seq_feature(pdb_file, pname)
@@ -228,7 +228,7 @@ class Data(Dataset):
             feats = torch.load(file_path)
             seq = None
         # ESM feature
-        feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_path)
+        feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
         # Prepare groundtruth
         indices = self.pos_targets[index].unsqueeze(0)
         values = torch.ones(len(self.pos_targets[index]))
