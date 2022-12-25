@@ -14,23 +14,23 @@ export MASTER_PORT=145
 # root_dir="/usr/commondata/local_public/protein-datasets/EnzymeCommission/"
 # encoder_model_checkpoint="/huangyufei/RefineDiff/RefineDiff-SM/train_result/ScoreMatching/RefineDiff_Debug/RefineDiff-epoch95-val_gdt0.66.ckpt"
 
-output_dir="./train_result/IPAFormer/MF/PretrainUpdate_GOMF"
+output_dir="./train_result/IPAFormer/CC/PretrainUpdate_GOCC"
 
 python3 train_DiffSE.py\
     --task mbclassify\
-    --config_name GO-MF-IPAFormer-Cluster\
+    --config_name GO-CC-IPAFormer-Cluster\
     --output_dir $output_dir\
     --log_every_n_steps 10\
     --log_lr\
     --gpus 4\
     --wandb\
-    --wandb_id RefineDiff-PretrainUpdate_GOMF\
-    --experiment_name RefineDiff-PretrainUpdate_GOMF\
+    --wandb_id RefineDiff-PretrainUpdate_GOCC\
+    --experiment_name RefineDiff-PretrainUpdate_GOCC\
     --wandb_group RefineDiff_GO\
     --wandb_project RefineDiff\
     --wandb_entity kirito_asuna\
-    # --debug True\
     #--encoder_model_checkpoint $encoder_model_checkpoint\
+    # --debug True\
     # --accumulate_grad_batches 8\
     # --limit_train_batches 5\
     # --resume_from_ckpt /root/Generative-Models/RefineDiff-SM/train_result/ScoreMatching/RefineDiff_Debug/last.ckpt

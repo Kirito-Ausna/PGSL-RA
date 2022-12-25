@@ -32,6 +32,21 @@ NUM_RES = "num residues placeholder"
 
 config = mlc.ConfigDict(
     {
+        "globals": {
+            "blocks_per_ckpt": blocks_per_ckpt,
+            "chunk_size": chunk_size,
+            "c_z": c_z,
+            "c_m": c_m,
+            "c_t": c_t,
+            "c_e": c_e,
+            "c_s": c_s,
+            "eps": eps,
+            "max_recycling_iters":2,
+            "num_steps":100,
+            "model_class": "denoise_module",
+          	"pretrain": False,
+            "metric":"delta_gdt_ts"
+        },
         "data":{
             "dataset":{
                 "name": "DeepAccNet",
@@ -133,19 +148,6 @@ config = mlc.ConfigDict(
                     "num_workers": 0,# We want metrics about the complete proteins
                 }
             }
-        },
-        "globals": {
-            "blocks_per_ckpt": blocks_per_ckpt,
-            "chunk_size": chunk_size,
-            "c_z": c_z,
-            "c_m": c_m,
-            "c_t": c_t,
-            "c_e": c_e,
-            "c_s": c_s,
-            "eps": eps,
-            "max_recycling_iters":2,
-            "num_steps":100,
-            "model_class": "denoise_module"
         },
         "model":{
             "_mask_trans": False,

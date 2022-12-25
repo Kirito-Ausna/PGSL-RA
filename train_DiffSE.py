@@ -57,11 +57,12 @@ def main(args):
     callbacks = []
     if(args.checkpoint_best_val):
         checkpoint_dir = os.path.join(args.output_dir, "checkpoints")
+        metric = config.globals.metric
         mc = ModelCheckpoint(
             dirpath=checkpoint_dir,
-            filename="RefineDiff-epoch{epoch:02d}-f1_max{val/f1_max:.2f}",
+            filename="RefineDiff-epoch{epoch:02d}-"+metric+"={val/"+metric+":.3f}",
             auto_insert_metric_name=False,
-            monitor="val/f1_max",
+            monitor="val/"+metric,
             save_top_k=3,
             mode="max",
             save_last=True,
@@ -112,7 +113,7 @@ def main(args):
     else:
         ckpt_path = args.resume_from_ckpt
     
-    if(config.downstream.pretrain):
+    if(config.globals.pretrain):
         encoder_model_state_dict = torch.load(config.downstream.encoder_checkpoint)["state_dict"]
         #pdb.set_trace()
         model_module.heads.load_state_dict(encoder_model_state_dict, strict=False)

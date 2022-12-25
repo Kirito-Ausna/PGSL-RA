@@ -32,6 +32,20 @@ NUM_RES = "num residues placeholder"
 
 config = mlc.ConfigDict(
     {
+        "globals": {
+            "blocks_per_ckpt": blocks_per_ckpt,
+            "chunk_size": chunk_size,
+            "c_z": c_z,
+            "c_m": c_m,
+            "c_t": c_t,
+            "c_e": c_e,
+            "c_s": c_s,
+            "eps": eps,
+            "max_recycling_iters":2,
+            "num_steps":100,
+            "pretrain": True,
+            "metric": "f1_max",
+        },
         "data":{
             "dataset":{
                 "name": "GO",
@@ -113,15 +127,15 @@ config = mlc.ConfigDict(
             "train": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 384,
+                "crop_size": 512,
                 "supervised": True,
                 "clamp_prob": 0.9,
                 "uniform_recycling": False,
             },
             "data_module":{
                 "train_dataloader": {
-                    "batch_size": 4,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
-                    "num_workers": 16,
+                    "batch_size": 2,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
+                    "num_workers": 32,
                 },
                 "val_dataloader":{
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the validation set
@@ -132,18 +146,6 @@ config = mlc.ConfigDict(
                     "num_workers": 0,# We want metrics about the complete proteins
                 }
             }
-        },
-        "globals": {
-            "blocks_per_ckpt": blocks_per_ckpt,
-            "chunk_size": chunk_size,
-            "c_z": c_z,
-            "c_m": c_m,
-            "c_t": c_t,
-            "c_e": c_e,
-            "c_s": c_s,
-            "eps": eps,
-            "max_recycling_iters":2,
-            "num_steps":100
         },
         "model":{
             "_mask_trans": False,
@@ -249,8 +251,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "alpha_encoder",
-            "pretrain": True,
-            "encoder_checkpoint": "/huangyufei/RefineDiff/RefineDiff-SM/train_result/ScoreMatching/RefineDiff_Debug/RefineDiff-epoch95-val_gdt0.66.ckpt",
+            "encoder_checkpoint": "/huangyufei/DiffSE/train_result/IPAFormer/RefineDiff/checkpoints/last.ckpt",
             "head":{
                 "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
@@ -327,7 +328,7 @@ config = mlc.ConfigDict(
             "base_lr": 0.,
             "max_lr":1e-4,
             "warmup_no_steps": 20400,
-            "start_decay_after_n_steps": 170000,
+            "start_decay_after_n_steps": 100000,
             "decay_every_n_steps": 6800, 
         }
     }

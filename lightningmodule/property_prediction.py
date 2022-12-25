@@ -46,7 +46,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         """
         Compute the weight for each task on the training set.
         """
-        save_path = self.config.data.dataset.root_path
+        save_path = self.config.data.dataset.root_dir
         task_weight_path = save_path + "task_weight.pt"
         pos_weight_path = save_path + "pos_weight.pt"
         

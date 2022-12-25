@@ -12,7 +12,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GO-BP-IPAFormer-Cluster")
+@register_config("GO-CC-IPAFormer-Cluster")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -52,7 +52,7 @@ config = mlc.ConfigDict(
                 "root_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/",
                 "gfeat_save_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/Graph_Feature/",
                 "esm_save_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/ESM_Feature/",
-                "branch": "BP",
+                "branch": "CC",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
@@ -253,7 +253,7 @@ config = mlc.ConfigDict(
             "encoder": "alpha_encoder",
             "encoder_checkpoint": "/huangyufei/DiffSE/train_result/IPAFormer/RefineDiff/checkpoints/last.ckpt",
             "head":{
-                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
                 "model_out_dim": 384,
             },
@@ -328,8 +328,8 @@ config = mlc.ConfigDict(
             "base_lr": 0.,
             "max_lr":1e-4,
             "warmup_no_steps": 10200,
-            "start_decay_after_n_steps": 100000,
-            "decay_every_n_steps": 3400, 
+            "start_decay_after_n_steps": 80000,
+            "decay_every_n_steps": 6800, 
         }
     }
 )
