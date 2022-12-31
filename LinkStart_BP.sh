@@ -29,6 +29,7 @@ python3 train_DiffSE.py\
     --wandb_group RefineDiff_GO\
     --wandb_project RefineDiff\
     --wandb_entity kirito_asuna\
+	--resume_from_ckpt /huangyufei/DiffSE/train_result/IPAFormer/BP/PretrainUpdate_GOBP/checkpoints/last.ckpt
     # --debug True\
     #--encoder_model_checkpoint $encoder_model_checkpoint\
     # --accumulate_grad_batches 8\

@@ -127,15 +127,15 @@ config = mlc.ConfigDict(
             "train": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 384,
                 "supervised": True,
                 "clamp_prob": 0.9,
                 "uniform_recycling": False,
             },
             "data_module":{
                 "train_dataloader": {
-                    "batch_size": 2,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
-                    "num_workers": 32,
+                    "batch_size": 4,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
+                    "num_workers": 64,
                 },
                 "val_dataloader":{
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the validation set
