@@ -52,7 +52,7 @@ config = mlc.ConfigDict(
                 "name": "DeepAccNet",
                 "train_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/train_proteins.npy",
                 "eval_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/valid_proteins.npy",
-                "predict_targets_path": None,
+                "test_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/test_proteins.npy",
                 "root_dir": "/huangyufei/Dataset/GNNRefine_Dataset/pdbs/",
                 "gfeat_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/gfeat/",
                 "esm_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/seq_esm_feature/",
@@ -120,6 +120,13 @@ config = mlc.ConfigDict(
                 "uniform_recycling": False,
             },
             "eval": {
+                "fixed_size": True,
+                "crop": False,
+                "crop_size": None,
+                "supervised": True,
+                "uniform_recycling": False,
+            },
+            "test": {
                 "fixed_size": True,
                 "crop": False,
                 "crop_size": None,

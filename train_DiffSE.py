@@ -109,7 +109,7 @@ def main(args):
         # ckpt = torch.load(args.resume_from_ckpt)
         # pdb.set_trace()
         # model_module.load_from_checkpoint(args.resume_from_ckpt, config)
-        model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config)
+        model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config=config)
     else:
         ckpt_path = args.resume_from_ckpt
     
