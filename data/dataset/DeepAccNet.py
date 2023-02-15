@@ -117,7 +117,7 @@ class Data(Dataset):
         return node_feat, edge_feat
 
 
-    def __getitem__(self, index , pindex=-1):
+    def __getitem__(self, index , pindex=0):
         if torch.is_tensor(index): index = index.tolist()
         # Get target name
         pname = self.targets[index]

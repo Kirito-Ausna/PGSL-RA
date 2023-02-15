@@ -41,7 +41,7 @@ config = mlc.ConfigDict(
             "c_e": c_e,
             "c_s": c_s,
             "eps": eps,
-            "max_recycling_iters":2,
+            "max_recycling_iters":5,
             "num_steps":100,
             "model_class": "denoise_module",
           	"pretrain": False,
@@ -144,7 +144,7 @@ config = mlc.ConfigDict(
             "data_module":{
                 "train_dataloader": {
                     "batch_size": 12,
-                    "num_workers": 16,
+                    "num_workers": 32,
                 },
                 "val_dataloader":{
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the validation set
@@ -326,7 +326,7 @@ config = mlc.ConfigDict(
             "max_lr": 0.001,
             "warmup_no_steps": 960,
             "start_decay_after_n_steps":9600,
-            "decay_every_n_steps": 320, 
+            "decay_every_n_steps": 570, 
         }
     }
 )
