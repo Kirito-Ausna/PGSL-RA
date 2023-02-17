@@ -53,7 +53,7 @@ class UnifiedDataModule(pl.LightningDataModule):
             if self.config.dataset.eval:
                 self.val_dataset = dataset_gen(mode = "eval")
         else:
-            self.predict_dataset = dataset_gen(mode = "predict")
+            self.test_dataset = dataset_gen(mode = "test")
     
     def _gen_batch_collator(self, stage):
         collate_fn = BatchCollator(self.config, stage)
@@ -78,12 +78,13 @@ class UnifiedDataModule(pl.LightningDataModule):
         else:
             return None
     
-    def predict_dataloader(self):
-        return torch.utils.data.DataLoader(
-            self.predict_dataset,
-            batch_size=self.config.data_module.predict_dataloader.batch_size,
-            collate_fn=self._gen_batch_collator("predict")
-        )
+    def test_dataloader(self):
+        if (self.test_dataset is not None):
+            return torch.utils.data.DataLoader(
+                self.test_dataset,
+                batch_size=self.config.data_module.predict_dataloader.batch_size,
+                collate_fn=self._gen_batch_collator("predict")
+            )
     
             
 

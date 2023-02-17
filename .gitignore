@@ -3,3 +3,4 @@ __pycache__
 /train_result/
 /test_result/
 .gitignore
+*.sh

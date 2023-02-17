@@ -44,7 +44,7 @@ config = mlc.ConfigDict(
             "max_recycling_iters":2,
             "num_steps":100,
             "model_class": "denoise_module",
-          	"pretrain": False,
+          	"pretrain": True,
             "metric":"delta_gdt_ts"
         },
         "data":{
@@ -52,7 +52,7 @@ config = mlc.ConfigDict(
                 "name": "DeepAccNet",
                 "train_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/train_proteins.npy",
                 "eval_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/valid_proteins.npy",
-                "predict_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/test_proteins.npy",
+                "test_targets_path": "/huangyufei/Dataset/GNNRefine_Dataset/test_proteins.npy",
                 "root_dir": "/huangyufei/Dataset/GNNRefine_Dataset/pdbs/",
                 "gfeat_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/gfeat/",
                 "esm_save_dir": "/huangyufei/Dataset/GNNRefine_Dataset/seq_esm_feature/",
@@ -126,6 +126,13 @@ config = mlc.ConfigDict(
                 "supervised": True,
                 "uniform_recycling": False,
             },
+            "test": {
+                "fixed_size": True,
+                "crop": False,
+                "crop_size": None,
+                "supervised": True,
+                "uniform_recycling": False,
+            },
             "train": {
                 "fixed_size": True,
                 "crop": True,
@@ -145,7 +152,11 @@ config = mlc.ConfigDict(
                 },
                 "predict_dataloader": {
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the prediction set
-                    "num_workers": 0,# We want metrics about the complete proteins
+                    "num_workers": 16,# We want metrics about the complete proteins
+                },
+                "test_dataloader": {
+                    "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the prediction set
+                    "num_workers": 16,# We want metrics about the complete proteins
                 }
             }
         },
@@ -226,7 +237,7 @@ config = mlc.ConfigDict(
                 "c_hidden_pair_att": 32,
                 "no_heads_msa": 8,
                 "no_heads_pair": 4,
-                "no_blocks": 1,
+                "no_blocks": 9,
                 "transition_n": 4,
                 "msa_dropout": 0.15,
                 "pair_dropout": 0.25,

@@ -43,7 +43,7 @@ config = mlc.ConfigDict(
             "eps": eps,
             "max_recycling_iters":2,
             "num_steps":100,
-            "pretrain": True,
+            "pretrain": False,
             "metric": "f1_max",
         },
         "data":{

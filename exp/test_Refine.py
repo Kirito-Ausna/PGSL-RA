@@ -1,5 +1,7 @@
 import logging
+import sys
 
+sys.path.append("..")
 mpl_logger = logging.getLogger("matplotlib")
 mpl_logger.setLevel(logging.WARNING)
 import argparse
@@ -10,11 +12,13 @@ import random
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.utilities.seed import seed_everything
+
 from config._base import get_config
 from data.data_module import UnifiedDataModule
 from lightningmodule._base import get_task
+
 
 def seed_globally(seed=None):
     if("PL_GLOBAL_SEED" not in os.environ):
@@ -33,7 +37,7 @@ def main(args):
 
     # model config details now give the users to specify
     config = get_config(args.config_name)()
-    model_moule = get_task(args.task)(config)
+    model_module = get_task(args.task)(config)
     data_module = UnifiedDataModule(
         config=config.data,
         **vars(args)
@@ -62,9 +66,11 @@ def main(args):
         accelerator="gpu"
     )
 
-    if args.resume_from_checkpoint is not None:
-        model_moule = model_moule.load_from_checkpoint(args.resume_from_checkpoint, config)
-    trainer.test(model=model_moule, datamodule=data_module)
+    if args.resume_from_ckpt is not None:
+        # model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config)
+        # provide the checkpoint loading code
+        model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config=config)
+    trainer.test(model=model_module, datamodule=data_module)
 
 def bool_type(bool_str: str):
     bool_str_lower = bool_str.lower()
@@ -97,13 +103,13 @@ if __name__ == "__main__":
     )
     #Logger
     parser.add_argument(
-        "--wandb", action="store_true", default=False,
+        "--wandb", action="store_true", default=True,
     )
     parser.add_argument(
-        "--experiment_name", type=str, default="AlphaRefineTest-DeepACCNet",
+        "--experiment_name", type=str, default="AlphaRefineTest-DeepACCNet-True",
     )
     parser.add_argument(
-        "--wandb_id", type=str, default="ARTest-DeepACCNet",
+        "--wandb_id", type=str, default="ARTest-DeepACCNet2",
     )
     parser.add_argument(
         "--wandb_group", type=str, default="AlphaRefineTest",

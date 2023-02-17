@@ -24,8 +24,14 @@ class RefineDiffWrapper(pl.LightningModule):
     def forward(self, batch):
         return self.model(batch)
 
-    def _log(self, loss_breakdown, batch, outputs, train=True):
-        phase = "train" if train else "val"
+    def _log(self, loss_breakdown, batch, outputs, train=True, test=False):
+        if train:
+            phase="train"
+        elif test:
+            phase="test"
+        else:
+            phase="val"
+
         for loss_name, indiv_loss in loss_breakdown.items():
             self.log(
                 f"{phase}/{loss_name}", 
@@ -51,7 +57,7 @@ class RefineDiffWrapper(pl.LightningModule):
             self.log(
                 f"{phase}/{k}", 
                 v, 
-                on_step=False, on_epoch=True, logger=True
+                on_step=test, on_epoch=True, logger=True
             )
     
     def training_step(self, batch, batch_idx):
@@ -77,6 +83,16 @@ class RefineDiffWrapper(pl.LightningModule):
         )
 
         self._log(loss_breakdown, batch, outputs, train=False)
+
+    def test_step(self, batch, batch_idx):
+        # Test the model
+        outputs = self(batch)
+        _, loss_breakdown = self.loss(
+            outputs, batch, _return_breakdown=True
+        )
+
+        self._log(loss_breakdown, batch, outputs, train=False, test=True)
+
 
     def _compute_validation_metrics(self, 
         batch, 
