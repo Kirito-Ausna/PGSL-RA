@@ -1,5 +1,5 @@
 # Batched Protein Structure data format convertion
-from openfold.np import residue_constants 
+# from openfold.np import residue_constants 
 from openfold.data.data_transforms import(
     atom37_to_torsion_angles
 )
@@ -14,9 +14,9 @@ from openfold.utils.affine_utils import T
 from openfold.np import residue_constants as rc
 from openfold.utils.rigid_utils import Rigid, Rotation
 import torch
-import torch_geometric, torch_cluster
+# import torch_geometric, torch_cluster
 # from gvp.atom3d import _edge_features
-import pdb
+# import pdb
 import logging
 import numpy as np
 import itertools
