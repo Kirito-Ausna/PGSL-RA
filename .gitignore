@@ -2,5 +2,6 @@ __pycache__
 *.pyc
 /train_result/
 /test_result/
+/train_result_nips/
 .gitignore
 *.sh
