@@ -8,15 +8,17 @@ import torch.nn.functional as F
 
 from data.data_transform import (atom14_to_atom37, atom37_to_rigids,
                                  pseudo_beta_fn)
-from data.feature_pipeline import (build_decoy_angle_feats,
-                                   build_decoy_pair_feats)
+# from data.feature_pipeline import (build_decoy_angle_feats,
+#                                    build_decoy_pair_feats)
 from models._base import register_model
+from models.encoders.decoy_encoder import DecoyEncoder
 from models.backbone.constrformer import ConstrainFormer
 from models.backbone.structure_module import StructureModule
-from models.encoders.embedder import (AtomEmbLayer, DecoyAngleEmbedder,
-                                      DecoyPairEmbedder, DecoyPairStack,
-                                      DecoyPointwiseAttention, InputEmbedder,
-                                      OuterProductMean, RecyclingEmbedder)
+# from models.encoders.embedder import (AtomEmbLayer, DecoyAngleEmbedder,
+#                                       DecoyPairEmbedder, DecoyPairStack,
+#                                       DecoyPointwiseAttention, InputEmbedder,
+#                                       OuterProductMean, RecyclingEmbedder)
+from models.encoders.embedder import (RecyclingEmbedder)
 from modules.common.so3 import rotation_to_so3vec, so3vec_to_rotation
 from modules.diffusion.transition import PositionTransition, RotationTransition
 from openfold.utils.rigid_utils import Rigid, Rotation
@@ -41,36 +43,37 @@ class DenoiseModule(nn.Module):
         super(DenoiseModule, self).__init__()
 
         self.config = config.model
-        decoy_config = self.config.decoy
+        # decoy_config = self.config.decoy
         # self.data_config = config.data
-        self.data_config = config.data.decoy
+        # self.data_config = config.data.decoy
         self.globals = config.globals
         self.num_steps = self.globals.num_steps
 
-        self.decoy_angle_embedder = DecoyAngleEmbedder(
-            **decoy_config["decoy_angle_embedder"]
-        )
-        self.decoy_pair_embedder = DecoyPairEmbedder(
-            **decoy_config["decoy_pair_embedder"]
-        )
-        self.decoy_atom_embedder = AtomEmbLayer(
-            **decoy_config["decoy_atom_embedder"]
-        )
-        self.decoy_pair_stack = DecoyPairStack(
-            **decoy_config["decoy_pair_stack"]
-        )
-        self.decoy_pointwise_att = DecoyPointwiseAttention(
-            **decoy_config["decoy_pointwise_attention"]
-        )
-        # self.decoy_seq_stack = DecoySeqStack(
-        #     **decoy_config["decoy_seq_stack"]
+        # self.decoy_angle_embedder = DecoyAngleEmbedder(
+        #     **decoy_config["decoy_angle_embedder"]
         # )
-        self.input_embedder = InputEmbedder(
-            **self.config["input_embedder"]
-        )
-        self.OuterProductMean = OuterProductMean(
-           **self.config["outer_product_mean"]
-        )
+        # self.decoy_pair_embedder = DecoyPairEmbedder(
+        #     **decoy_config["decoy_pair_embedder"]
+        # )
+        # self.decoy_atom_embedder = AtomEmbLayer(
+        #     **decoy_config["decoy_atom_embedder"]
+        # )
+        # self.decoy_pair_stack = DecoyPairStack(
+        #     **decoy_config["decoy_pair_stack"]
+        # )
+        # self.decoy_pointwise_att = DecoyPointwiseAttention(
+        #     **decoy_config["decoy_pointwise_attention"]
+        # )
+        # # self.decoy_seq_stack = DecoySeqStack(
+        # #     **decoy_config["decoy_seq_stack"]
+        # # )
+        # self.input_embedder = InputEmbedder(
+        #     **self.config["input_embedder"]
+        # )
+        # self.OuterProductMean = OuterProductMean(
+        #    **self.config["outer_product_mean"]
+        # )
+        self.embed_decoy = DecoyEncoder(config)
         self.costrformer = ConstrainFormer(
             **self.config["constrainformer"]
         )
@@ -80,7 +83,7 @@ class DenoiseModule(nn.Module):
         self.recycling_embedder = RecyclingEmbedder(
             **self.config["recycling_embedder"]
         )
-        self.esm_weights = nn.Parameter(torch.ones(1,4,1,1), requires_grad=True)
+        # self.esm_weights = nn.Parameter(torch.ones(1,4,1,1), requires_grad=True)
         # init_weights = torch.ones(4)
         # self.esm_weights.data.fill_(init_weights)
         self.trans_rot = RotationTransition(self.num_steps)
@@ -88,49 +91,49 @@ class DenoiseModule(nn.Module):
         self.register_buffer('_dummy', torch.empty([0, ]))
 
 
-    def embed_decoy(self, batch, pair_mask=None, seq_mask=None):
-        decoy_embeds = {}
-        # ESM Embedding Here
-        esm_embedding = batch["esm_emb"] # [B,4,N,5120]
-        # pdb.set_trace()
-        s = torch.sum(F.softmax(self.esm_weights) * esm_embedding, dim=1) # [B,N,5120]
-        s = self.input_embedder(s,seq_mask)
-        # pdb.set_trace()
-        batch = build_decoy_angle_feats(batch)
-        decoy_pair_feats = build_decoy_pair_feats(
-                batch,
-                inf=self.data_config.inf,
-                eps=self.data_config.eps,
-                **self.data_config.distogram
-            )
-        #updated embedding
-        decoy_angle_feats = self.decoy_atom_embedder(batch)
-        a = self.decoy_angle_embedder(decoy_angle_feats) + s
-        # a = self.decoy_seq_stack(a)
-        decoy_embeds["angle"] = a
-        # decoy_pair_feats = batch["decoy_pair_feats"]
-        z = self.OuterProductMean(a[:,None,...], seq_mask[:,None,...])
-        d = self.decoy_pair_embedder(decoy_pair_feats)
-        decoy_embeds["pair"] = d
-        d = self.decoy_pair_stack(
-            decoy_embeds["pair"].unsqueeze(-4),
-            pair_mask.unsqueeze(-3),
-            chunk_size=self.globals.chunk_size,
-            _mask_trans=self.config._mask_trans,
-        )
-        t = d
-        # pdb.set_trace()
-        d = self.decoy_pointwise_att(
-            d,
-            # torch.cat((d[:,0,...], d[:,0,...]), dim=-1),
-            z,
-            chunk_size=self.globals.chunk_size,
-        )
-        ret = {}
-        ret["decoy_angle_embedding"] = decoy_embeds["angle"]
-        ret["decoy_pair_embedding"] = d
+    # def embed_decoy(self, batch, pair_mask=None, seq_mask=None):
+    #     decoy_embeds = {}
+    #     # ESM Embedding Here
+    #     esm_embedding = batch["esm_emb"] # [B,4,N,5120]
+    #     # pdb.set_trace()
+    #     s = torch.sum(F.softmax(self.esm_weights) * esm_embedding, dim=1) # [B,N,5120]
+    #     s = self.input_embedder(s,seq_mask)
+    #     # pdb.set_trace()
+    #     batch = build_decoy_angle_feats(batch)
+    #     decoy_pair_feats = build_decoy_pair_feats(
+    #             batch,
+    #             inf=self.data_config.inf,
+    #             eps=self.data_config.eps,
+    #             **self.data_config.distogram
+    #         )
+    #     #updated embedding
+    #     decoy_angle_feats = self.decoy_atom_embedder(batch)
+    #     a = self.decoy_angle_embedder(decoy_angle_feats) + s
+    #     # a = self.decoy_seq_stack(a)
+    #     decoy_embeds["angle"] = a
+    #     # decoy_pair_feats = batch["decoy_pair_feats"]
+    #     z = self.OuterProductMean(a[:,None,...], seq_mask[:,None,...])
+    #     d = self.decoy_pair_embedder(decoy_pair_feats)
+    #     decoy_embeds["pair"] = d
+    #     d = self.decoy_pair_stack(
+    #         decoy_embeds["pair"].unsqueeze(-4),
+    #         pair_mask.unsqueeze(-3),
+    #         chunk_size=self.globals.chunk_size,
+    #         _mask_trans=self.config._mask_trans,
+    #     )
+    #     t = d
+    #     # pdb.set_trace()
+    #     d = self.decoy_pointwise_att(
+    #         d,
+    #         # torch.cat((d[:,0,...], d[:,0,...]), dim=-1),
+    #         z,
+    #         chunk_size=self.globals.chunk_size,
+    #     )
+    #     ret = {}
+    #     ret["decoy_angle_embedding"] = decoy_embeds["angle"]
+    #     ret["decoy_pair_embedding"] = d
 
-        return ret, t
+    #     return ret, t
     def decoy2rigids(self, batch):
         return atom37_to_rigids(batch["decoy_aatype"], batch["decoy_all_atom_positions"], batch["decoy_all_atom_mask"])
     
