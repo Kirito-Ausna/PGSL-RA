@@ -160,7 +160,7 @@ class Data(Dataset):
             feats = torch.load(file_path)
             seq=None
         # ESM feature
-        feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
+        # feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
         
 
         return feats

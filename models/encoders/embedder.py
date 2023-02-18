@@ -1,5 +1,4 @@
 import re
-from turtle import forward
 import torch
 import torch.nn as nn
 from typing import Tuple
@@ -935,6 +934,3 @@ class RecyclingEmbedder(nn.Module):
         z_update = d + self.layer_norm_z(z)
 
         return m_update, z_update
-
-
-
