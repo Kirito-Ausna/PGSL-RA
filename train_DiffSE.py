@@ -21,6 +21,7 @@ from pytorch_lightning.utilities.seed import seed_everything
 from config._base import get_config
 from data.data_module import UnifiedDataModule
 from lightningmodule._base import get_task
+from utils.ema import EMA
 
 
 def seed_globally(seed=None):
@@ -73,6 +74,10 @@ def main(args):
     if(args.log_lr):
         lr_monitor = LearningRateMonitor(logging_interval="step")
         callbacks.append(lr_monitor)
+
+    if(args.ema):
+        ema = EMA(decay=0.999)
+        callbacks.append(ema)
     
     # swa = StochasticWeightAveraging(swa_lrs=1e-2)   
         
@@ -176,6 +181,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--log_lr", action="store_true", default=False,
+    )
+    parser.add_argument(
+        "--ema", action="store_true", default=False,
     )
     parser.add_argument(
         "--wandb", action="store_true", default=False,

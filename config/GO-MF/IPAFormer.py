@@ -135,7 +135,7 @@ config = mlc.ConfigDict(
             "data_module":{
                 "train_dataloader": {
                     "batch_size": 4,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
-                    "num_workers": 64,
+                    "num_workers": 32,
                 },
                 "val_dataloader":{
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the validation set
@@ -146,6 +146,18 @@ config = mlc.ConfigDict(
                     "num_workers": 0,# We want metrics about the complete proteins
                 }
             }
+        },
+        "downstream":{
+            "encoder": "alpha_encoder",
+            "encoder_checkpoint": "/huangyufei/DiffSE/train_result_nips/RefineDiff/IPAFormer/refinement/checkpoints/RefineDiff-epoch47-delta_gdt_ts=0.003.ckpt",
+            "head":{
+                "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+                "model_out_dim": 384,
+            },
+            "metric": ['f1_max'],
+            "encoder_fixed": False,
+            "reweight": False,
         },
         "model":{
             "_mask_trans": False,
@@ -248,18 +260,6 @@ config = mlc.ConfigDict(
                 "epsilon": eps,  # 1e-12,
                 "inf": 1e5,
             },
-        },
-        "downstream":{
-            "encoder": "alpha_encoder",
-            "encoder_checkpoint": "/huangyufei/DiffSE/train_result/IPAFormer/RefineDiff/checkpoints/last.ckpt",
-            "head":{
-                "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-                "model_out_dim": 384,
-            },
-            "metric": ['f1_max'],
-            "encoder_fixed": False,
-            "reweight": False,
         },
         "loss": {
             "distogram": {
