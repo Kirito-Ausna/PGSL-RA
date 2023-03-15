@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 from torchdrug import utils
 
 from data.dataset._base import register_dataset
-from data.feature_pipeline import process_decoy
+from data.pipeline_base import get_pipeline
 from utils import Utils
 
 FeatureDict = Mapping[str, np.ndarray]
@@ -54,7 +54,10 @@ class Data(Dataset):
         branch = config.dataset.branch
         self.gfeat_save_dir = config.dataset.gfeat_save_dir
         self.esm_save_dir = config.dataset.esm_save_dir
-        if not os.path.exists(self.gfeat_save_dir):
+        self.feature_pipline = config.dataset.feature_pipeline
+        if self.gfeat_save_dir is None:
+            self.feature_saved_mode = False
+        if self.feature_saved_mode and not os.path.exists(self.gfeat_save_dir):
             os.makedirs(self.gfeat_save_dir)
         root_dir = os.path.expanduser(root_dir)
         self.path = root_dir
@@ -67,9 +70,6 @@ class Data(Dataset):
         self.mode = mode
         self.config = config
         self.debug = debug
-        self.feat_class = {'seq': {'node': ['rPosition',], 'edge': ['SepEnc']}, 
-                           'struc': {'node': ['SS3', 'RSA', 'Dihedral'], 
-                           'edge': ['Ca1-Ca2', 'Cb1-Cb2', 'N1-O2', 'Ca1-Cb1-Cb2', 'N1-Ca1-Cb1-Cb2', 'Ca1-Cb1-Cb2-Ca2']}}
         exlude_pdb_ids = []
         tsv_file = os.path.join(self.path, "nrPDB-GO_annot.tsv") # MulticlassBinaryClassification label
         if self.mode == "predict":
@@ -156,41 +156,10 @@ class Data(Dataset):
         return list(self.targets.keys())
 
     # A Dict contains various features with defined names
-    def _process_decoy(self, path, gnn_feature, seq, chain_id: Optional[str] = None):
-        data = process_decoy(path, gnn_feature, seq, self.config.decoy)
+    def _process_decoy(self, path: str, pname: str, chain_id: Optional[str] = None):
+        # data = process_decoy(path, gnn_feature, seq, self.config.decoy)
+        data = get_pipeline(self.feature_pipline)(path, pname, getattr(self.config, "decoy", None))
         return data
-
-    def __get_seq_feature(self, pdb_file, pname):
-        seq = Utils.get_seqs_from_pdb(pdb_file)
-        seq = seq.replace('X','')
-        # pdb.set_trace()
-        # node_feat
-        # save_path = "/usr/commondata/local_public/protein-datasets/EnzymeCommission/ESMFeature/"
-        # save_path = os.path.dirname(self.path) + "/ESMFeature/"
-        node_feat = {
-            # 'onehot': Utils.get_seq_onehot(seq),
-            'rPosition': Utils.get_rPos(seq),
-            # 'esm':Utils.get_esm_embedding(seq, pname, save_path)
-        }
-        # edge_feat
-        edge_feat = {
-            'SepEnc': Utils.get_SepEnc(seq),
-        }
-        return node_feat, edge_feat, len(seq), seq
-
-    def __get_struc_feat(self, pdb_file, seq_len):
-        # node feat
-        node_feat = Utils.get_DSSP_label(pdb_file, [1, seq_len])
-        # atom_emb
-        embedding = Utils.get_atom_emb(pdb_file, [1, seq_len])
-        # Utils.get_atom_emb(pdb_file, [1, seq_len])
-        node_feat['atom_emb'] = {
-            'embedding': embedding.astype(np.float32),
-        }
-        # edge feat
-        edge_feat = Utils.calc_geometry_maps(pdb_file, [1, seq_len], self.feat_class['struc']['edge'])
-        # return None
-        return node_feat, edge_feat
 
     def __getitem__(self, index):
         # return 1
@@ -199,34 +168,20 @@ class Data(Dataset):
         pname = self.pdb_ids[index]
         # Get decoy path
         pdb_file = self.pdb_files[index]
+        # file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
         # Add GNNRefine Features, node as single feature, edge as pair feature
-        feature = {"node": None, "edge": None}
-        file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
-        if not os.path.exists(file_path):
-            # seq feature
-            seq_node_feat, seq_edge_feat, seq_len, seq = self.__get_seq_feature(pdb_file, pname)
-            for _feat in self.feat_class['seq']['node']:
-                feature['node'] = seq_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], seq_node_feat[_feat]), axis=-1)
-            # print(feature['node'].shape)
-            for _feat in self.feat_class['seq']['edge']:
-                feature['edge'] = seq_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], seq_edge_feat[_feat]), axis=-1)
-            # struc feature
-            struc_node_feat, struc_edge_feat = self.__get_struc_feat(pdb_file, seq_len)
-            # self.__get_struc_feat(pdb_file, seq_len)
-            for _feat in self.feat_class['struc']['node']:
-                feature['node'] = struc_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], struc_node_feat[_feat]), axis=-1)
-            for _feat in self.feat_class['struc']['edge']:
-                feature['edge'] = struc_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], struc_edge_feat[_feat]), axis=-1)
-          
-            feature = np.nan_to_num(feature)
-            feature['node'] = feature['node'].astype(np.float32)
-            feature['edge'] = feature['edge'].astype(np.float32)
-            feature['atom_emb'] = struc_node_feat['atom_emb']['embedding']
-            feats = self._process_decoy(pdb_file, feature, seq)
-            torch.save(feats, file_path)
+        # feature = {"node": None, "edge": None}
+        if self.feature_saved_mode:
+            file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
+            if not os.path.exists(file_path):
+                # seq feature
+                feats = self._process_decoy(pdb_file, pname)
+                torch.save(feats, file_path)
+            else:
+                feats = torch.load(file_path)
+                # seq = None
         else:
-            feats = torch.load(file_path)
-            seq = None
+            feats = self._process_decoy(pdb_file, pname)
         # ESM feature
         # feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
         # Prepare groundtruth

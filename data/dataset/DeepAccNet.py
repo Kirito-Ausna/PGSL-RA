@@ -14,7 +14,7 @@ from data.feature_pipeline import (process_decoy, process_features,
                                    process_label)
 from utils import Utils
 from utils.protein import get_seqs_from_pdb
-from utils.tenor_utils import dict_multimap
+from utils.tensor_utils import dict_multimap
 
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]

@@ -3,7 +3,7 @@ sys.path.append("../../data")
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from embedder import (
+from .embedder import (
     DecoyAngleEmbedder,
     DecoyPairEmbedder,
     AtomEmbLayer,

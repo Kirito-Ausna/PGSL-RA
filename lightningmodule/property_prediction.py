@@ -35,9 +35,9 @@ class MultiBClassifyWrapper(pl.LightningModule):
     def define_metrics(self):
         for _metric in self.metrics:
             if _metric == "auroc@micro":
-                self.auroc_micro = torchmetrics.AUROC(num_classes=self.tasks, average="macro")
+                self.auroc_micro = torchmetrics.AUROC(num_classes=self.tasks, average="macro")#TODO: this is not correct, use your own metric
             elif _metric == "f1_max":
-                self.train_f1_max = metrics.f1_max()#TODO: this is not correct, use your own metric
+                self.train_f1_max = metrics.f1_max()
                 self.val_f1_max = metrics.f1_max()
             else:
                 raise ValueError("Unknown criterion `%s`" % _metric)

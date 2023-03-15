@@ -1,18 +1,19 @@
 # Batched Protein Structure data format convertion
 # from openfold.np import residue_constants 
-from openfold.data.data_transforms import(
-    atom37_to_torsion_angles
-)
-from openfold.np.residue_constants import (
+# from openfold.data.data_transforms import(
+#     atom37_to_torsion_angles
+# )
+from utils.residue_constants import (
     restype_rigid_group_default_frame,
 )
-from openfold.utils.tensor_utils import (
+from utils.tensor_utils import (
     batched_gather,
 )
 NUM_RES = "num residues placeholder"
-from openfold.utils.affine_utils import T
-from openfold.np import residue_constants as rc
-from openfold.utils.rigid_utils import Rigid, Rotation
+# from openfold.utils.affine_utils import T
+from utils.affine_utils import T
+from utils import residue_constants as rc
+from utils.rigid_utils import Rigid, Rotation
 import torch
 # import torch_geometric, torch_cluster
 # from gvp.atom3d import _edge_features
@@ -746,7 +747,7 @@ def random_crop_to_size(
     shape_schema
 ):
     g = torch.Generator(device=protein["decoy_aatype"].device)
-    seq_length = protein["decoy_seq_length"]
+    seq_length = protein["decoy_aatype"].shape[0]
     num_res_crop_size = min(int(seq_length), crop_size)
 
     def _randint(lower, upper):
@@ -754,7 +755,7 @@ def random_crop_to_size(
                 lower,
                 upper + 1,
                 (1,),
-                device=protein["decoy_seq_length"].device,
+                device=protein["decoy_aatype"].device,
                 generator=g,
         )[0])
 
@@ -772,7 +773,7 @@ def random_crop_to_size(
             slices.append(slice(crop_start, crop_start + crop_size))
         protein[k] = v[slices]
     
-    protein["decoy_seq_length"] = protein["decoy_seq_length"].new_tensor(num_res_crop_size)
+    # protein["decoy_seq_length"] = protein["decoy_seq_length"].new_tensor(num_res_crop_size)
     return protein
 
 @curry1

@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import torch
 
 from data.feature_pipeline import process_features
-from utils.tenor_utils import dict_multimap
+from utils.tensor_utils import dict_multimap
 
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
@@ -64,7 +64,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.train_dataset,
                 batch_size=self.config.data_module.train_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("train")
+                collate_fn=self._gen_batch_collator("train"),
+                pin_memeory=True,
             )
 
     def val_dataloader(self):
@@ -73,7 +74,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.val_dataset,
                 batch_size=self.config.data_module.val_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("eval")
+                collate_fn=self._gen_batch_collator("eval"),
+                pin_memeory=True,
             )
         else:
             return None
@@ -83,7 +85,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.test_dataset,
                 batch_size=self.config.data_module.predict_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("predict")
+                collate_fn=self._gen_batch_collator("predict"),
+                pin_memeory=True,
             )
     
             

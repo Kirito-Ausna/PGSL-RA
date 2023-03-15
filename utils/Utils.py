@@ -24,6 +24,9 @@ def get_seqs_from_pdb(pdb_file):
         return str(record.seq).upper()
 
 RESIDUE_TYPES = ['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','X']
+feat_class = {'seq': {'node': ['rPosition',], 'edge': ['SepEnc']}, 
+              'struc': {'node': ['SS3', 'RSA', 'Dihedral'], 
+                        'edge': ['Ca1-Ca2', 'Cb1-Cb2', 'N1-O2', 'Ca1-Cb1-Cb2', 'N1-Ca1-Cb1-Cb2', 'Ca1-Cb1-Cb2-Ca2']}}
 def get_esm_embedding(seq, pname, save_path="/usr/commondata/local_public/GNNRefine_Dataset/seq_esm_feature/"):
         file_path = os.path.join(save_path, pname+".pt")
         if not os.path.exists(file_path):
@@ -317,3 +320,57 @@ def get_atom_emb(pdb_file, res_range, model_id=0, chain_id=0):
     return embedding
 
 
+def get_gnn_seq_feature(pdb_file, pname):
+        seq = get_seqs_from_pdb(pdb_file)
+        seq = seq.replace('X','')
+        # pdb.set_trace()
+        # node_feat
+        # save_path = "/usr/commondata/local_public/protein-datasets/EnzymeCommission/ESMFeature/"
+        # save_path = os.path.dirname(self.path) + "/ESMFeature/"
+        node_feat = {
+            # 'onehot': Utils.get_seq_onehot(seq),
+            'rPosition': get_rPos(seq),
+            # 'esm':Utils.get_esm_embedding(seq, pname, save_path)
+        }
+        # edge_feat
+        edge_feat = {
+            'SepEnc': get_SepEnc(seq),
+        }
+        return node_feat, edge_feat, len(seq), seq
+
+def get_gnn_struc_feat(pdb_file, seq_len):
+    # node feat
+    node_feat = get_DSSP_label(pdb_file, [1, seq_len])
+    # atom_emb
+    embedding = get_atom_emb(pdb_file, [1, seq_len])
+    # Utils.get_atom_emb(pdb_file, [1, seq_len])
+    node_feat['atom_emb'] = {
+        'embedding': embedding.astype(np.float32),
+    }
+    # edge feat
+    edge_feat = calc_geometry_maps(pdb_file, [1, seq_len], feat_class['struc']['edge'])
+    # return None
+    return node_feat, edge_feat
+
+def get_gnn_feature(feature: dict, pdb_file: str, pname: str):
+    seq_node_feat, seq_edge_feat, seq_len, _ = get_gnn_seq_feature(pdb_file, pname)
+    for _feat in feat_class['seq']['node']:
+        feature['node'] = seq_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], seq_node_feat[_feat]), axis=-1)
+    # print(feature['node'].shape)
+    for _feat in feat_class['seq']['edge']:
+        feature['edge'] = seq_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], seq_edge_feat[_feat]), axis=-1)
+    # struc feature
+    struc_node_feat, struc_edge_feat = get_gnn_struc_feat(pdb_file, seq_len)
+    # self.__get_struc_feat(pdb_file, seq_len)
+    for _feat in feat_class['struc']['node']:
+        feature['node'] = struc_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], struc_node_feat[_feat]), axis=-1)
+    for _feat in feat_class['struc']['edge']:
+        feature['edge'] = struc_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], struc_edge_feat[_feat]), axis=-1)
+    
+    feature = np.nan_to_num(feature)
+    feature['node'] = feature['node'].astype(np.float32)
+    feature['edge'] = feature['edge'].astype(np.float32)
+    feature['atom_emb'] = struc_node_feat['atom_emb']['embedding']
+
+    return feature
+    # feats = self._process_decoy(pdb_file, feature, seq)

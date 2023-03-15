@@ -141,14 +141,14 @@ class AlphaEncoder(nn.Module):
             z,
             seq_mask[:,None,...],
             pair_mask,
-        )
+        ) # Probably good but too costly, powerful yet difficult to train
 
         s = self.structure_module(
             s.squeeze(1),
             z,
             rigids,
             mask=seq_mask
-        )
+        ) # Z is fixed in this manner. It's okay when using powerful inizialization like esm embedding, but not good when directly learning from structure 
 
 
         return s
