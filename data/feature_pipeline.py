@@ -1,5 +1,5 @@
 import sys
-
+import os
 # from Manifold.openfold.data.input_pipeline import compose
 sys.path.append("..")
 import copy
@@ -312,7 +312,7 @@ def process_decoy(
 @register_pipeline("Graphformer")
 def process_protein(
     pdb_path: str,
-    pame: str,
+    pname: Optional[str] = None,
     decoy_config: Optional[Dict[str, Any]] = None,
     chain_id: Optional[str] = None) -> FeatureDict:
     """
@@ -341,6 +341,7 @@ def process_protein(
     protein_feats["decoy_seq_mask"] = torch.ones(
         protein_feats["decoy_aatype"].shape, dtype=torch.float32
     )
+    protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
 
     return protein_feats
 

@@ -111,7 +111,7 @@ class GaussianEncoder(nn.Module):
         batch = build_unimol_angle_feats(batch)
         # pdb.set_trace()
         x = self.decoy_angle_embedder(batch["decoy_angle_feats"])
-        dist, et = build_unimol_pair_feats(batch, ca_only=True, pair_mask=pair_mask)
+        dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)
         graph_attn_bias = self.get_dist_features(dist, et)
 
         return x, graph_attn_bias

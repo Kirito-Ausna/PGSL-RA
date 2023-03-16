@@ -21,7 +21,7 @@ encoder_ffn_embed_dim = mlc.FieldReference(default=2048, field_type=int) # descr
 pair_embed_dim = mlc.FieldReference(default=128, field_type=int) # description="Pair embedding dimension.",
 num_attention_heads = mlc.FieldReference(default=64, field_type=int) # description="Number of attention heads.",
 activation_fn = mlc.FieldReference(default="gelu", field_type=str) # description="Activation function.",
-max_seq_len = mlc.FieldReference(default=256, field_type=int) # description="Maximum sequence length.",
+max_seq_len = mlc.FieldReference(default=512, field_type=int) # description="Maximum sequence length.",
 eps = mlc.FieldReference(default=1e-5, field_type=float) # description="Epsilon for numerical stability.",
 
 NUM_RES = "num residues placeholder"
@@ -43,7 +43,7 @@ config = mlc.ConfigDict(
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "gfeat_save_dir": None,
+                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
                 "esm_save_dir": None,
             },
             "common":{
@@ -84,7 +84,7 @@ config = mlc.ConfigDict(
             },
             "data_module":{
                 "train_dataloader":{
-                    "batch_size": 32,
+                    "batch_size": 4,
                     "num_workers": 64,
                 },
                 "val_dataloader":{
@@ -148,9 +148,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 2140,
-            "start_decay_after_n_steps": 10700,
-            "decay_every_n_steps": 215
+            "warmup_no_steps": 34240,
+            "start_decay_after_n_steps": 171300,
+            "decay_every_n_steps": 3440
         }
 
     }

@@ -65,7 +65,7 @@ class UnifiedDataModule(pl.LightningDataModule):
                 self.train_dataset,
                 batch_size=self.config.data_module.train_dataloader.batch_size,
                 collate_fn=self._gen_batch_collator("train"),
-                pin_memeory=True,
+                pin_memory=True,
             )
 
     def val_dataloader(self):
@@ -75,7 +75,7 @@ class UnifiedDataModule(pl.LightningDataModule):
                 self.val_dataset,
                 batch_size=self.config.data_module.val_dataloader.batch_size,
                 collate_fn=self._gen_batch_collator("eval"),
-                pin_memeory=True,
+                pin_memory=True,
             )
         else:
             return None
@@ -86,7 +86,7 @@ class UnifiedDataModule(pl.LightningDataModule):
                 self.test_dataset,
                 batch_size=self.config.data_module.predict_dataloader.batch_size,
                 collate_fn=self._gen_batch_collator("predict"),
-                pin_memeory=True,
+                pin_memory=True,
             )
     
             
