@@ -103,9 +103,6 @@ def from_pdb_string(pdb_str: str, chain_id: Optional[str] = None) -> Protein:
             # logging.info("Skip the residue in this protein")
             pass
         res_shortname = residue_constants.restype_3to1.get(res.resname, "X")
-        if res_shortname == "X":
-            # logging.info("Skip the residue in this protein")
-            continue
         restype_idx = residue_constants.restype_order.get(
             res_shortname, residue_constants.restype_num
         )
@@ -113,7 +110,7 @@ def from_pdb_string(pdb_str: str, chain_id: Optional[str] = None) -> Protein:
         mask = np.zeros((residue_constants.atom_type_num,))
         res_b_factors = np.zeros((residue_constants.atom_type_num,))
         for atom in res:
-            if atom.name not in residue_constants.atom_types:
+            if atom.name not in residue_constants.atom_types or atom.parent.get_id()[0] != ' ':
                 continue
             pos[residue_constants.atom_order[atom.name]] = atom.coord
             mask[residue_constants.atom_order[atom.name]] = 1.0

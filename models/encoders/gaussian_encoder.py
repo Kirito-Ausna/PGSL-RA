@@ -108,7 +108,7 @@ class GaussianEncoder(nn.Module):
             decoy_batch:
                 A dict-like object that contains the following keys:
         """
-        batch = build_unimol_angle_feats(batch)
+        # batch = build_unimol_angle_feats(batch)
         # pdb.set_trace()
         x = self.decoy_angle_embedder(batch["decoy_angle_feats"])
         dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)

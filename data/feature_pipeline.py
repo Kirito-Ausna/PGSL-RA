@@ -335,14 +335,21 @@ def process_protein(
     atom_num = torch.sum(all_atom_mask)
     CoM = torch.sum(points, dim=-2) / atom_num
     CoM = CoM[None,None,...]
-    shifted_all_atom_positions = (all_atom_positions - CoM) * all_atom_mask[...,None]
+    try:
+        shifted_all_atom_positions = (all_atom_positions - CoM) * all_atom_mask[...,None]
+    except:
+        # pdb.set_trace()
+        print(pdb_path)
+        print(all_atom_positions)
+        print(all_atom_mask)
+        print(CoM)
     protein_feats["decoy_all_atom_positions"] = shifted_all_atom_positions
 
     protein_feats["decoy_seq_mask"] = torch.ones(
         protein_feats["decoy_aatype"].shape, dtype=torch.float32
     )
     protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
-
+    protein_feats = build_unimol_angle_feats(protein_feats)
     return protein_feats
 
 def process_label(

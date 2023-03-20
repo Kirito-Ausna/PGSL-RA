@@ -43,7 +43,7 @@ config = mlc.ConfigDict(
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/reprocessed/",
                 "esm_save_dir": None,
             },
             "common":{
@@ -85,11 +85,11 @@ config = mlc.ConfigDict(
             "data_module":{
                 "train_dataloader":{
                     "batch_size": 4,
-                    "num_workers": 64,
+                    "num_workers": 32,
                 },
                 "val_dataloader":{
                     "batch_size": 1,
-                    "num_workers": 64,
+                    "num_workers": 32,
                 },
                 "predict_dataloader":{
                     "batch_size": 1,
@@ -127,7 +127,7 @@ config = mlc.ConfigDict(
                 }   
             },
             "graphformer": {
-                "encoder_layers": 15,
+                "encoder_layers": 15, # original 15
                 "embed_dim": encoder_embed_dim,
                 "ffn_embed_dim": encoder_ffn_embed_dim,
                 "attention_heads": num_attention_heads,

@@ -290,5 +290,6 @@ if __name__ == '__main__':
     dataset = Data(data_config, args.mode, debug=args.debug, reset=args.reset)
     data = dataset[0]
     # pdb.set_trace()
+    print(data)
     print(len(dataset))
 
