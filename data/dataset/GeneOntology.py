@@ -49,7 +49,7 @@ class Data(Dataset):
     # md5 = "376be1f088cd1fe720e1eaafb701b5cb"
     branches = ["MF", "BP", "CC"]
     test_cutoffs = [0.3, 0.4, 0.5, 0.7, 0.95]
-    MAP_SIZE = 128*(1024*1024*1024)  # 64GB
+    MAP_SIZE = 512*(1024*1024*1024)  # 512GB
     def __init__(self,
                 config: mlc.ConfigDict,
                 mode: str="train",
@@ -94,6 +94,8 @@ class Data(Dataset):
         if self.feature_saved_mode:
             self.db_conn = None
             self._load_structures(reset)
+            self._connect_db()
+
         pdb_ids = [os.path.basename(pdb_file).split("_")[0] for pdb_file in self.pdb_files]
         self.pdb_ids = pdb_ids
         self.load_annotation(self.tsv_file, pdb_ids)
@@ -241,11 +243,15 @@ class Data(Dataset):
             readahead=False,
             meminit=False,
         )
+        # self.feature_list = {} # store all data in cpu for the sake of speed
+        # self.data = pickle.loads(self.db_conn)
     
-    def _get_structure(self, idx):
-        self._connect_db()
+    def _get_structure(self, pname):
+        # data = self.feature_list.get(pname, None)
+        # if data is None:
         with self.db_conn.begin() as txn:
-            data = pickle.loads(txn.get(idx.encode()))
+            data = pickle.loads(txn.get(pname.encode()))
+            # self.feature_list[pname] = data
         return data
 
 
@@ -278,7 +284,7 @@ if __name__ == '__main__':
     parser.add_argument("--config_name", type=str, default="GOMF_Graphformer")
     parser.add_argument("--mode", type=str, default="train")
     parser.add_argument("--debug", type=bool, default=False)
-    parser.add_argument("--reset", type=bool, default=False)
+    parser.add_argument("--reset", type=bool, default=True)
     args = parser.parse_args()
     if args.reset:
         sure = input('Sure to reset? (y/n): ')
@@ -290,6 +296,8 @@ if __name__ == '__main__':
     dataset = Data(data_config, args.mode, debug=args.debug, reset=args.reset)
     data = dataset[0]
     # pdb.set_trace()
-    print(data)
+    # print(data["edge_type"].shape)
+    # print(data["dist"].shape)
+    print(data.keys())
     print(len(dataset))
 

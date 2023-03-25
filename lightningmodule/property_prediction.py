@@ -10,7 +10,7 @@ from downstream.property_prediction import MultipleBinaryClassification
 from lightningmodule._base import register_task
 # from models.alpha_encoder import AlphaEncoder
 from models._base import get_model
-from modules import metrics
+from modules import losses, metrics
 from utils.lr_scheduler import AlphaFoldLRScheduler
 
 
@@ -85,6 +85,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         loss = F.binary_cross_entropy_with_logits(pred, target, reduction="none", pos_weight=self.pos_weight)
         loss = loss.mean(dim=0)
         loss = (loss * self.weight).sum() / self.weight.sum()
+        # loss = losses.sigmoid_focal_loss(pred, target, reduction="mean")
         self._log(loss, target, pred, train=True)
         return loss
         # print("Training step")
@@ -96,6 +97,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         loss = F.binary_cross_entropy_with_logits(pred, target, reduction="none", pos_weight=self.pos_weight)
         loss = loss.mean(dim=0)
         loss = (loss * self.weight).sum() / self.weight.sum()
+        # loss = losses.sigmoid_focal_loss(pred, target, reduction="mean")
         # pdb.set_trace()
         self._log(loss, target, pred, train=False)
         # print("Validation step")
@@ -121,7 +123,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
 
     def configure_optimizers(self, 
         learning_rate: float = 1e-3,
-        eps: float = 1e-5,
+        eps: float = 1e-8,
         ) -> torch.optim.Adam:
 
         optimizer = torch.optim.AdamW(

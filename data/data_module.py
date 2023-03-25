@@ -23,9 +23,11 @@ class BatchCollator:
     def __call__(self, raw_prots) -> FeatureDict:
         # return 1
         processed_prots = []
+        # get the max sequence length in a batch
+        max_seq_len = max([prot["decoy_seq_mask"].shape[0] for prot in raw_prots])
 
         for prot in raw_prots:
-            features = process_features(prot, self.stage, self.config)
+            features = process_features(prot, self.stage, self.config, max_seq_len)
             processed_prots.append(features)
 
         stack_fn = partial(torch.stack, dim=0)

@@ -48,11 +48,11 @@ class NonLinearHead(nn.Module):
         return x
 
 class GaussianLayer(nn.Module):
-    def __init__(self, K=128, edge_types=1024):
+    def __init__(self, num_distance=25, K=16, edge_types=1024):
         super().__init__()
         self.K = K
-        self.means = nn.Embedding(1, K)
-        self.stds = nn.Embedding(1, K)
+        self.means = nn.Embedding(1, num_distance*self.K)  # 16 * 25 = 400, it's the total number of kernels
+        self.stds = nn.Embedding(1, num_distance*self.K)
         self.mul = nn.Embedding(edge_types, 1)
         self.bias = nn.Embedding(edge_types, 1)
         nn.init.uniform_(self.means.weight, 0, 3)
@@ -63,8 +63,12 @@ class GaussianLayer(nn.Module):
     def forward(self, x, edge_type):
         mul = self.mul(edge_type).type_as(x)
         bias = self.bias(edge_type).type_as(x)
-        x = mul * x.unsqueeze(-1) + bias
-        x = x.expand(-1, -1, -1, self.K)
+        # pdb.set_trace()
+        # x = mul * x.unsqueeze(-1) + bias # [B, N, N, 25, 1]
+        x = mul * x + bias # [B, N, N, 25]
+        x = x.unsqueeze(-1) # [B, N, N, 25, 1]
+        x = x.expand(-1, -1, -1, -1, self.K) # [B, N, N, 25, K]
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2], -1) # [B, N, N, 25*K]
         mean = self.means.weight.float().view(-1)
         std = self.stds.weight.float().view(-1).abs() + 1e-5
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
@@ -86,18 +90,20 @@ class GaussianEncoder(nn.Module):
         self.decoy_angle_embedder = DecoyAngleEmbedder(
             **self.embedder_config["protein_angle_embedder"]
         )
+        num_distance = self.embedder_config["gaussian_layer"]["num_pair_distance"]
         K = self.embedder_config["gaussian_layer"]["kernel_num"]
         n_edge_types = len(restypes_with_x) * len(restypes_with_x)
-        self.gbf = GaussianLayer(K, n_edge_types)
+        self.gbf = GaussianLayer(num_distance, K, n_edge_types)
         self.gbf_proj = NonLinearHead(
             **self.embedder_config["non_linear_head"]
         )
     
     def get_dist_features(self, dist, et):
-        n_node = dist.size(-1)
+        n_node = dist.size(-2)
         gbf_feature = self.gbf(dist, et)
         gbf_result = self.gbf_proj(gbf_feature)
         graph_attn_bias = gbf_result
+        # pdb.set_trace()
         graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
         graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node)
         return graph_attn_bias
@@ -111,7 +117,9 @@ class GaussianEncoder(nn.Module):
         # batch = build_unimol_angle_feats(batch)
         # pdb.set_trace()
         x = self.decoy_angle_embedder(batch["decoy_angle_feats"])
+        # pdb.set_trace()
         dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)
+        # dist, et = batch["dist"], batch["edge_type"]
         graph_attn_bias = self.get_dist_features(dist, et)
 
         return x, graph_attn_bias

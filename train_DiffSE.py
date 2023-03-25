@@ -64,9 +64,9 @@ def main(args):
             filename="RefineDiff-epoch{epoch:02d}-"+metric+"={val/"+metric+":.3f}",
             auto_insert_metric_name=False,
             monitor="val/"+metric,
-            save_top_k=3,
+            save_top_k=2,
             mode="max",
-            save_last=True,
+            save_last=False,
             save_on_train_epoch_end=False
         )
         callbacks.append(mc)
@@ -228,10 +228,10 @@ if __name__ == "__main__":
 
     parser = pl.Trainer.add_argparse_args(parser)
 
-    # Disable the initial validation pass
-    # parser.set_defaults(
-    #     num_sanity_val_steps=0,
-    # )
+    #Disable the initial validation pass
+    parser.set_defaults(
+        num_sanity_val_steps=0,
+    )
     
     args = parser.parse_args()
 

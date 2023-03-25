@@ -18,11 +18,11 @@ def model_cofig(train=False, low=False):
 
 encoder_embed_dim = mlc.FieldReference(default=512, field_type=int) # description="Encoder embedding dimension.",
 encoder_ffn_embed_dim = mlc.FieldReference(default=2048, field_type=int) # description="Encoder feedforward embedding dimension.",
-pair_embed_dim = mlc.FieldReference(default=128, field_type=int) # description="Pair embedding dimension.",
+pair_embed_dim = mlc.FieldReference(default=400, field_type=int) # description="Pair embedding dimension.",
 num_attention_heads = mlc.FieldReference(default=64, field_type=int) # description="Number of attention heads.",
 activation_fn = mlc.FieldReference(default="gelu", field_type=str) # description="Activation function.",
-max_seq_len = mlc.FieldReference(default=512, field_type=int) # description="Maximum sequence length.",
-eps = mlc.FieldReference(default=1e-5, field_type=float) # description="Epsilon for numerical stability.",
+max_seq_len = mlc.FieldReference(default=256, field_type=int) # description="Maximum sequence length.",
+eps = mlc.FieldReference(default=1e-12, field_type=float) # description="Epsilon for numerical stability.",
 
 NUM_RES = "num residues placeholder"
 
@@ -43,7 +43,7 @@ config = mlc.ConfigDict(
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/reprocessed/",
+                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
                 "esm_save_dir": None,
             },
             "common":{
@@ -51,13 +51,14 @@ config = mlc.ConfigDict(
                     "decoy_aatype": [NUM_RES],
                     "decoy_all_atom_mask": [NUM_RES, None],
                     "decoy_all_atom_positions": [NUM_RES, None, None],
+                    "decoy_angle_feats": [NUM_RES, None], 
+                    "targets": [None], #:= 538
+                    "bb_rigid_tensors": [NUM_RES, None, None],
                     # build in dataloader
                     "decoy_seq_mask": [NUM_RES],
                     # Build in gaussian encoder
-                    "decoy_angle_feats": [NUM_RES, None], 
-                    "dist": [NUM_RES, NUM_RES],
+                    "dist": [NUM_RES, NUM_RES, None],
                     "edge_type": [NUM_RES, NUM_RES],
-                    "targets": [None], #:= 538
                 }
             },
             "predict": {
@@ -69,8 +70,8 @@ config = mlc.ConfigDict(
             },
             "eval": {
                 "fixed_size": True,
-                "crop": False,
-                "crop_size": None,
+                "crop": True,
+                "crop_size": 512,
                 "supervised": True,
                 "uniform_recycling": False,
             },
@@ -84,11 +85,11 @@ config = mlc.ConfigDict(
             },
             "data_module":{
                 "train_dataloader":{
-                    "batch_size": 4,
+                    "batch_size": 16,
                     "num_workers": 32,
                 },
                 "val_dataloader":{
-                    "batch_size": 1,
+                    "batch_size": 16,
                     "num_workers": 32,
                 },
                 "predict_dataloader":{
@@ -117,17 +118,18 @@ config = mlc.ConfigDict(
                     "c_out": encoder_embed_dim,
                 },
                 "gaussian_layer": {
-                    "kernel_num": pair_embed_dim,
+                    "kernel_num": 16,
+                    "num_pair_distance": 25
                 },
                 "non_linear_head": {
-                    "input_dim": pair_embed_dim,
+                    "input_dim": pair_embed_dim,# 25*16 = 400
                     "out_dim": num_attention_heads,
                     "activation_fn": activation_fn,
                     "hidden": 2*num_attention_heads,
                 }   
             },
             "graphformer": {
-                "encoder_layers": 15, # original 15
+                "encoder_layers": 3, # original 15
                 "embed_dim": encoder_embed_dim,
                 "ffn_embed_dim": encoder_ffn_embed_dim,
                 "attention_heads": num_attention_heads,
@@ -140,6 +142,20 @@ config = mlc.ConfigDict(
                 # "pooler_activation_fn": "tanh",
                 "post_ln": False,
                 "no_final_head_layer_norm": True,
+            },
+            "ipaformer": {
+                "c_s": encoder_embed_dim,
+                "c_z": num_attention_heads,
+                "c_ipa": 16,
+                "no_heads_ipa": 12,
+                "no_qk_points": 4,
+                "no_v_points": 8,
+                "dropout_rate": 0.1,
+                "no_blocks": 3,
+                "no_transition_layers": 1,
+                "trans_scale_factor": 10,
+                "epsilon": eps,  # 1e-12,
+                "inf": 1e5,
             }
         },
         "loss": {
@@ -148,9 +164,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 34240,
-            "start_decay_after_n_steps": 171300,
-            "decay_every_n_steps": 3440
+            "warmup_no_steps": 8600,
+            "start_decay_after_n_steps": 43000,
+            "decay_every_n_steps": 860
         }
 
     }

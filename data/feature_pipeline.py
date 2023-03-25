@@ -18,7 +18,7 @@ from utils import residue_constants as rc
 from utils.rigid_utils import Rigid, Rotation
 from utils.Utils import get_gnn_feature
 
-from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn
+from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn, atom37_to_rigid_tensors
 from data.pipeline_base import register_pipeline
 
 TensorDict = Dict[str, torch.Tensor]
@@ -221,7 +221,8 @@ def build_unimol_pair_feats(decoy_feats, ca_only=False, pair_mask=None):
             dist = _get_dist(vars()['atom_' + atom1], vars()['atom_' + atom2])
             dist_list.append(dist)
         # Use the average of all distances as the distance feature between two residues
-        dist = torch.stack(dist_list, dim=-1).mean(dim=-1) # shape: [B, N, N]
+        # dist = torch.stack(dist_list, dim=-1).mean(dim=-1) # shape: [B, N, N]
+        dist = torch.stack(dist_list, dim=-1) # shape: [B, N, N, 25] # Use all distances as the distance feature between two residues
     else:
         atom_Ca = decoy_feats["decoy_all_atom_positions"][..., ca, :]
         # print(atom_Ca.shape)
@@ -229,14 +230,20 @@ def build_unimol_pair_feats(decoy_feats, ca_only=False, pair_mask=None):
     # pdb.set_trace()
     # print(dist.shape)
     # print(pair_mask.shape)
-    dist = dist * pair_mask
+    if pair_mask is None:
+        seq_mask = decoy_feats["decoy_seq_mask"]
+        pair_mask = seq_mask[..., None] * seq_mask[..., None, :]
+
+    dist = dist * pair_mask[..., None]
 
     # create edge type
-    b_s = dist.shape[0]
+    # b_s = dist.shape[0]
     num_types = len(rc.restypes_with_x)
-    aatype = decoy_feats["decoy_aatype"] # shape: [B, N]
-    offset = aatype.view(b_s, -1, 1) * num_types + aatype.view(b_s, 1, -1)
-
+    aatype = decoy_feats["decoy_aatype"] # shape: [B, N] or [N]
+    offset = aatype[..., :, None] * num_types + aatype[..., None, :] # shape: [B, N, N] or [N, N]
+    # decoy_feats["dist"] = dist
+    # decoy_feats["edge_type"] = offset
+    # return decoy_feats
     return dist, offset
 #######################################################################################################################
 # Feature extraction pipeline in dataset for a give encoder
@@ -350,6 +357,9 @@ def process_protein(
     )
     protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
     protein_feats = build_unimol_angle_feats(protein_feats)
+    # protein_feats = build_unimol_pair_feats(protein_feats)
+    protein_feats["bb_rigid_tensors"] = atom37_to_rigid_tensors(protein_feats["decoy_aatype"], protein_feats["decoy_all_atom_positions"], protein_feats["decoy_all_atom_mask"])
+
     return protein_feats
 
 def process_label(
@@ -424,21 +434,24 @@ def compose(x, fs):
     return x
 
 def process_features(
-    raw_features: FeatureDict, mode: str, config: ml_collections.ConfigDict):
+    raw_features: FeatureDict, mode: str, config: ml_collections.ConfigDict, max_seq_length: int):
     """Crop the decoys and cooresponding groundtruths to form the batches"""
     # Turn np array into tensor if any
     # return 1
     cfg = copy.deepcopy(config)
     mode_cfg = cfg[mode]
     # num_res = int(raw_features["decoy_seq_length"])
-    num_res = raw_features["decoy_aatype"].shape[0]
+    # num_res = raw_features["decoy_aatype"].shape[0]
     with cfg.unlocked():
-        if mode_cfg.crop_size is None:
+        if mode_cfg.crop_size is None: # Don't set max_seq_length here
             # if num_res <= 300:
-            mode_cfg.crop_size = num_res
+            # mode_cfg.crop_size = num_res
+            mode_cfg.crop_size = max_seq_length
             # pdb.set_trace()
             # mode_cfg.crop_size = 300
             # logging.warning("Sequence length is too long, crop to 320")
+        else:
+            mode_cfg.crop_size = min(mode_cfg.crop_size, max_seq_length) # compare max_seq_length in the batch and permitted max_seq_length in the config file
     feature_names = config.common.feat.keys()
     tensor_dict = np_to_tensor_dict(np_example= raw_features, features=feature_names)
     with torch.no_grad():

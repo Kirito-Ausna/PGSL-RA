@@ -414,6 +414,18 @@ def atom37_to_rigids(aatype, all_atom_positions, all_atom_mask):
     rigids = Rigid.from_tensor_4x4(bb_rigid_tensor)
     return rigids
 
+def atom37_to_rigid_tensors(aatype, all_atom_positions, all_atom_mask):
+    protein = {}
+    protein["aatype"] = aatype
+    protein["all_atom_positions"] = all_atom_positions
+    protein["all_atom_mask"] = all_atom_mask
+    FrameTrans = atom37_to_frames("")
+    protein = FrameTrans(protein)
+    GetBackbone = get_backbone_frames("")
+    protein = GetBackbone(protein)
+    bb_rigid_tensors = protein["backbone_rigid_tensor"]
+    return bb_rigid_tensors
+
 def make_atom14_masks(protein):
     """Construct denser atom positions (14 dimensions instead of 37)."""
     # pdb.set_trace()

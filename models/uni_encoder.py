@@ -5,7 +5,10 @@ import numpy as np
 
 from models.encoders.gaussian_encoder import GaussianEncoder
 from models.backbone.graphformer import TransformerEncoderWithPair
+from models.backbone.ipaformer import Ipaformer
 from models._base import register_model
+from data.data_transform import atom37_to_rigids
+from utils.rigid_utils import Rigid
 
 @register_model("uni_encoder")
 class UniEncoder(nn.Module):
@@ -21,7 +24,14 @@ class UniEncoder(nn.Module):
         self.encoder = TransformerEncoderWithPair(
             **self.config["graphformer"]
         )
+        self.ipaformer = Ipaformer(
+            **self.config["ipaformer"]
+        )
     
+    # def decoy2rigid(self, batch):
+    #     return atom37_to_rigids(batch["decoy_aatype"], 
+    #                             batch["decoy_all_atom_positions"], batch["decoy_all_atom_mask"])
+
     def forward(self, batch):
 
         seq_mask = batch["decoy_seq_mask"]
@@ -36,7 +46,16 @@ class UniEncoder(nn.Module):
             x_norm,
             delta_encoder_pair_rep_norm,
         ) = self.encoder(x, padding_mask=padding_mask, attn_mask=graph_attn_bias)
-        encoder_pair_rep[encoder_pair_rep == float("inf")] = 0
-
+        encoder_pair_rep[encoder_pair_rep == float("-inf")] = 0
+        # rigids = self.decoy2rigid(batch)
+        rigids = Rigid.from_tensor_4x4(batch["bb_rigid_tensors"])
+        encoder_rep = self.ipaformer(
+            encoder_rep,
+            encoder_pair_rep,
+            rigids,
+            mask=seq_mask
+        )# encoder_pair_rep is fixed in this manner. It's okay when using powerful inizialization like esm embedding, 
+         # but not good when directly learning from structure 
+        
         return encoder_rep
         
