@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 from models.encoders.gaussian_encoder import GaussianEncoder
 from models.backbone.graphformer import TransformerEncoderWithPair
@@ -39,6 +38,7 @@ class UniEncoder(nn.Module):
         padding_mask = 1 - seq_mask
         # embed protein
         x, graph_attn_bias = self.protein_embedder(batch, pair_mask)
+        
         (
             encoder_rep, 
             encoder_pair_rep,
@@ -56,6 +56,11 @@ class UniEncoder(nn.Module):
             mask=seq_mask
         )# encoder_pair_rep is fixed in this manner. It's okay when using powerful inizialization like esm embedding, 
          # but not good when directly learning from structure 
-        
+        # encoder_rep = self.ipaformer(
+        #     x,
+        #     graph_attn_bias,
+        #     rigids,
+        #     mask=seq_mask
+        # )
         return encoder_rep
         

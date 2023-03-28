@@ -11,7 +11,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GOMF_Graphformer")
+@register_config("GOCC_Graphformer")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -38,7 +38,7 @@ config = mlc.ConfigDict(
             "dataset": {
                 "name": "GO",
                 "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "MF",
+                "branch": "CC",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
@@ -103,7 +103,7 @@ config = mlc.ConfigDict(
             "encoder_checkpoint": None,
             "head": {
                 "model_out_dim": encoder_embed_dim,
-                "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
             },
             "metric": ['f1_max'],
@@ -129,7 +129,7 @@ config = mlc.ConfigDict(
                 }   
             },
             "graphformer": {
-                "encoder_layers": 0, # original 15
+                "encoder_layers": 3, # original 15
                 "embed_dim": encoder_embed_dim,
                 "ffn_embed_dim": encoder_ffn_embed_dim,
                 "attention_heads": num_attention_heads,
@@ -151,7 +151,7 @@ config = mlc.ConfigDict(
                 "no_qk_points": 4,
                 "no_v_points": 8,
                 "dropout_rate": 0.1,
-                "no_blocks": 6,
+                "no_blocks": 3,
                 "no_transition_layers": 1,
                 "trans_scale_factor": 10,
                 "epsilon": eps,  # 1e-12,
