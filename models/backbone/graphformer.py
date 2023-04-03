@@ -62,6 +62,7 @@ class TransformerEncoderWithPair(nn.Module):
         emb: torch.Tensor,
         attn_mask: Optional[torch.Tensor] = None,
         padding_mask: Optional[torch.Tensor] = None,
+        pair_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
 
         bsz = emb.size(0)

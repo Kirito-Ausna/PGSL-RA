@@ -114,22 +114,28 @@ config = mlc.ConfigDict(
             "embedder": {
                 "protein_angle_embedder": {
                     "c_in": 57,
-                    "c_m": encoder_embed_dim // 2,
+                    "c_m": encoder_embed_dim*2,
                     "c_out": encoder_embed_dim,
                 },
                 "gaussian_layer": {
                     "kernel_num": 16,
                     "num_pair_distance": 25
                 },
-                "non_linear_head": {
+                "bias_proj_layer": {
                     "input_dim": pair_embed_dim,# 25*16 = 400
                     "out_dim": num_attention_heads,
                     "activation_fn": activation_fn,
                     "hidden": 2*num_attention_heads,
+                },
+                "centrality_proj_layer":{
+                    "input_dim": pair_embed_dim,
+                    "out_dim": encoder_embed_dim,
+                    "activation_fn": activation_fn,
+                    "hidden": 2*encoder_embed_dim,
                 }   
             },
             "graphformer": {
-                "encoder_layers": 0, # original 15
+                "encoder_layers": 1, # original 15
                 "embed_dim": encoder_embed_dim,
                 "ffn_embed_dim": encoder_ffn_embed_dim,
                 "attention_heads": num_attention_heads,
@@ -144,6 +150,7 @@ config = mlc.ConfigDict(
                 "no_final_head_layer_norm": True,
             },
             "ipaformer": {
+                "no_blocks": 5,
                 "c_s": encoder_embed_dim,
                 "c_z": num_attention_heads,
                 "c_ipa": 16,
@@ -151,7 +158,6 @@ config = mlc.ConfigDict(
                 "no_qk_points": 4,
                 "no_v_points": 8,
                 "dropout_rate": 0.1,
-                "no_blocks": 6,
                 "no_transition_layers": 1,
                 "trans_scale_factor": 10,
                 "epsilon": eps,  # 1e-12,

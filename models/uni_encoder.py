@@ -38,14 +38,13 @@ class UniEncoder(nn.Module):
         padding_mask = 1 - seq_mask
         # embed protein
         x, graph_attn_bias = self.protein_embedder(batch, pair_mask)
-        
         (
             encoder_rep, 
             encoder_pair_rep,
             delta_encoder_pair_rep,
             x_norm,
             delta_encoder_pair_rep_norm,
-        ) = self.encoder(x, padding_mask=padding_mask, attn_mask=graph_attn_bias)
+        ) = self.encoder(x, padding_mask=padding_mask, attn_mask=graph_attn_bias, pair_mask=pair_mask)
         encoder_pair_rep[encoder_pair_rep == float("-inf")] = 0
         # rigids = self.decoy2rigid(batch)
         rigids = Rigid.from_tensor_4x4(batch["bb_rigid_tensors"])

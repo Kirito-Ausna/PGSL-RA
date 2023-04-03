@@ -95,18 +95,29 @@ class GaussianEncoder(nn.Module):
         n_edge_types = len(restypes_with_x) * len(restypes_with_x)
         self.gbf = GaussianLayer(num_distance, K, n_edge_types)
         self.gbf_proj = NonLinearHead(
-            **self.embedder_config["non_linear_head"]
+            **self.embedder_config["bias_proj_layer"]
+        )
+        self.centrality_proj = NonLinearHead(
+            **self.embedder_config["centrality_proj_layer"]
         )
     
-    def get_dist_features(self, dist, et):
+    def get_encoding_features(self, dist, et, pair_mask=None):
         n_node = dist.size(-2)
         gbf_feature = self.gbf(dist, et)
+
+        if pair_mask is not None:
+            centrality_encoding = gbf_feature * pair_mask.unsqueeze(-1)
+        else:
+            centrality_encoding = gbf_feature # [B, N, N, 25*K]
+        centrality_encoding = self.centrality_proj(centrality_encoding.sum(dim=-2)) # [B, N, encoder_embed_dim]
+
         gbf_result = self.gbf_proj(gbf_feature)
-        graph_attn_bias = gbf_result
+        graph_attn_bias = gbf_result # [B, N, N, num_head]
         # pdb.set_trace()
-        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous()
-        graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node)
-        return graph_attn_bias
+        # sum over the length dimension (-3)
+        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous() # [B, num_head, N, N]
+        graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node) # [B*num_head, N, N]
+        return graph_attn_bias, centrality_encoding
     
     def forward(self, batch, pair_mask=None):
         """
@@ -120,7 +131,8 @@ class GaussianEncoder(nn.Module):
         # pdb.set_trace()
         dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)
         # dist, et = batch["dist"], batch["edge_type"]
-        graph_attn_bias = self.get_dist_features(dist, et)
+        graph_attn_bias, centrality_encoding = self.get_encoding_features(dist, et, pair_mask=pair_mask)
+        x = x + centrality_encoding
 
         return x, graph_attn_bias
 
