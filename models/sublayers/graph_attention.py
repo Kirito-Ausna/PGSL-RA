@@ -137,8 +137,8 @@ class TransformerEncoderLayer(nn.Module):
         activation_dropout: float = 0.0,
         activation_fn: str = "gelu",
         post_ln = False,
-        edge_attn_hidden_dim = 8,
-        edge_attn_heads = 4,
+        # edge_attn_hidden_dim = 8,
+        # edge_attn_heads = 4,
     ) -> None:
         super().__init__()
 
@@ -150,19 +150,19 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout = dropout
         self.activation_dropout = activation_dropout
         self.activation_fn = utils.get_activation_fn(activation_fn)
-        self.edge_attn_hidden_dim = edge_attn_hidden_dim
-        self.edge_attn_heads = edge_attn_heads
+        # self.edge_attn_hidden_dim = edge_attn_hidden_dim
+        # self.edge_attn_heads = edge_attn_heads
 
         self.self_attn = SelfMultiheadAttention(
             self.embed_dim,
             self.attention_heads,
             dropout=attention_dropout,
         )
-        self.edge_attn = TriangleAttentionStartingNode(
-            c_in=self.attention_heads,
-            c_hidden=self.edge_attn_hidden_dim,
-            no_heads=self.edge_attn_heads,
-        )
+        # self.edge_attn = TriangleAttentionStartingNode(
+        #     c_in=self.attention_heads,
+        #     c_hidden=self.edge_attn_hidden_dim,
+        #     no_heads=self.edge_attn_heads,
+        # )
         # layer norm associated with the self attention layer
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.fc1 = nn.Linear(self.embed_dim, ffn_embed_dim)
@@ -195,13 +195,13 @@ class TransformerEncoderLayer(nn.Module):
         )
         if return_attn:
             x, attn_weights, attn_probs = x
-            edge_repr = attn_weights
-            edge_repr[edge_repr == float("-inf")] = 0
-            edge_repr = edge_repr.view(x.shape[0], -1, x.shape[1], x.shape[1]).permute(0, 2, 3, 1).contiguous()
-            edge_repr_update = self.edge_attn(edge_repr, pair_mask)
-            edge_repr_update = edge_repr_update.permute(0, 3, 1, 2).contiguous()
-            edge_repr_update = edge_repr_update.view(-1, x.shape[1], x.shape[1]) # [bsz*num_heads, tgt_len, src_len]
-            attn_weights = attn_weights + edge_repr_update # residual connection and keep padding mask
+            # edge_repr = attn_weights
+            # edge_repr[edge_repr == float("-inf")] = 0
+            # edge_repr = edge_repr.view(x.shape[0], -1, x.shape[1], x.shape[1]).permute(0, 2, 3, 1).contiguous()
+            # edge_repr_update = self.edge_attn(edge_repr, pair_mask)
+            # edge_repr_update = edge_repr_update.permute(0, 3, 1, 2).contiguous()
+            # edge_repr_update = edge_repr_update.view(-1, x.shape[1], x.shape[1]) # [bsz*num_heads, tgt_len, src_len]
+            # attn_weights = attn_weights + edge_repr_update # residual connection and keep padding mask
 
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x

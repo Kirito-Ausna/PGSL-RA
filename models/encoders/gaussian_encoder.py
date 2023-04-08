@@ -101,7 +101,7 @@ class GaussianEncoder(nn.Module):
             **self.embedder_config["centrality_proj_layer"]
         )
     
-    def get_encoding_features(self, dist, et, pair_mask=None):
+    def get_encoding_features(self, dist, et, pair_mask=None, get_bias=True):
         n_node = dist.size(-2)
         gbf_feature = self.gbf(dist, et)
 
@@ -115,11 +115,12 @@ class GaussianEncoder(nn.Module):
         graph_attn_bias = gbf_result # [B, N, N, num_head]
         # pdb.set_trace()
         # sum over the length dimension (-3)
-        graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous() # [B, num_head, N, N]
-        graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node) # [B*num_head, N, N]
+        if get_bias:
+            graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous() # [B, num_head, N, N]
+            graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node) # [B*num_head, N, N]
         return graph_attn_bias, centrality_encoding
     
-    def forward(self, batch, pair_mask=None):
+    def forward(self, batch, pair_mask=None, get_bias=True):
         """
         Args:
             decoy_batch:
@@ -131,7 +132,7 @@ class GaussianEncoder(nn.Module):
         # pdb.set_trace()
         dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)
         # dist, et = batch["dist"], batch["edge_type"]
-        graph_attn_bias, centrality_encoding = self.get_encoding_features(dist, et, pair_mask=pair_mask)
+        graph_attn_bias, centrality_encoding = self.get_encoding_features(dist, et, pair_mask=pair_mask, get_bias=get_bias)
         x = x + centrality_encoding
 
         return x, graph_attn_bias

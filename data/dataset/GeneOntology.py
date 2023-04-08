@@ -57,7 +57,7 @@ class Data(Dataset):
                 reset: bool=False,
                 **kwargs):
         super().__init__()
-        self.esm_save_dir = config.dataset.esm_save_dir
+        # self.esm_save_dir = config.dataset.esm_save_dir
         self.feature_pipline = config.dataset.feature_pipeline
         self.mode = mode
         self.config = config
