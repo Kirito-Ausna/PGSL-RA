@@ -71,6 +71,7 @@ class GaussianLayer(nn.Module):
         x = x.reshape(x.shape[0], x.shape[1], x.shape[2], -1) # [B, N, N, 25*K]
         mean = self.means.weight.float().view(-1)
         std = self.stds.weight.float().view(-1).abs() + 1e-5
+        # print(self.mul.weight.sum(), self.bias.weight.sum())
         return gaussian(x.float(), mean, std).type_as(self.means.weight)
     
 class GaussianEncoder(nn.Module):

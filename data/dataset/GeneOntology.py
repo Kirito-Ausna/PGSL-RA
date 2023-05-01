@@ -91,6 +91,7 @@ class Data(Dataset):
         if len(self.exlude_pdb_ids) > 0:
             self.filter_pdb(self.exlude_pdb_ids)# filter out similar proteins in test set
         self.dicard_nonstandard_pdb()
+        
         if self.feature_saved_mode:
             self.db_conn = None
             self._load_structures(reset)
