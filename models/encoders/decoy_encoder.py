@@ -3,7 +3,7 @@ sys.path.append("../../data")
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from embedder import (
+from .embedder import (
     DecoyAngleEmbedder,
     DecoyPairEmbedder,
     AtomEmbLayer,
@@ -49,8 +49,8 @@ class DecoyEncoder(nn.Module):
         self.decoy_pointwise_att = DecoyPointwiseAttention(
             **decoy_config["decoy_pointwise_attention"]
         )
-        self.OutProductMean = OuterProductMean(
-              **decoy_config["outer_product_mean"]
+        self.OuterProductMean = OuterProductMean(
+              **self.config["outer_product_mean"]
         )
     def forward(self, batch, pair_mask=None, seq_mask=None):
         """
