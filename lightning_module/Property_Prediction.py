@@ -6,8 +6,8 @@ import torch
 import torchmetrics
 from torch.nn import functional as F
 
-from downstream.property_prediction import MultipleBinaryClassification
-from lightningmodule._base import register_task
+from task_framework.property_prediction import MultipleBinaryClassification
+from lightning_module._base import register_task
 # from models.alpha_encoder import AlphaEncoder
 from models._base import get_model
 from modules import losses, metrics
@@ -34,11 +34,18 @@ class MultiBClassifyWrapper(pl.LightningModule):
 
     def define_metrics(self):
         for _metric in self.metrics:
-            if _metric == "auroc@micro":
-                self.auroc_micro = torchmetrics.AUROC(num_classes=self.tasks, average="macro")#TODO: this is not correct, use your own metric
+            if _metric == "auroc_micro":
+                self.train_auroc_micro = metrics.classification_metric("area_under_roc")
+                self.val_auroc_micro = metrics.classification_metric("area_under_roc")
             elif _metric == "f1_max":
-                self.train_f1_max = metrics.f1_max()
-                self.val_f1_max = metrics.f1_max()
+                self.train_f1_max = metrics.classification_metric("f1_max")
+                self.val_f1_max = metrics.classification_metric("f1_max")
+            elif _metric == "auprc_micro":
+                self.train_auprc_micro = metrics.classification_metric("area_under_prc")
+                self.val_auprc_micro = metrics.classification_metric("area_under_prc")
+            elif _metric == "acc":
+                self.train_acc = metrics.classification_metric("accuracy")
+                self.val_acc = metrics.classification_metric("accuracy")
             else:
                 raise ValueError("Unknown criterion `%s`" % _metric)
     
@@ -102,9 +109,27 @@ class MultiBClassifyWrapper(pl.LightningModule):
         self._log(loss, target, pred, train=False)
         # print("Validation step")
 
-    def _log(self, loss, target, pred, train=True):
-        phase = "train" if train else "val"
-        self.log(f"{phase}/bce", loss, on_step=train, on_epoch=(not train), logger=True)
+    def test_step(self, batch, batch_idx):
+        # Test step is the same as validation step
+        # self.validation_step(batch, batch_idx)
+        pred = self.forward(batch)
+        target = batch["targets"]
+        loss = F.binary_cross_entropy_with_logits(pred, target, reduction="none", pos_weight=self.pos_weight)
+        loss = loss.mean(dim=0)
+        loss = (loss * self.weight).sum() / self.weight.sum()
+        # loss = losses.sigmoid_focal_loss(pred, target, reduction="mean")
+        # pdb.set_trace()
+        self._log(loss, target, pred, train=False, test=True)
+
+    def _log(self, loss, target, pred, train=True, test=False):
+        # phase = "train" if train else "val"
+        if train:
+            phase="train"
+        elif test:
+            phase="test"
+        else:
+            phase="val"
+        self.log(f"{phase}/bce", loss, on_step=train or test, on_epoch=(not train), logger=True)
         if(train):
             self.log(
                 f"{phase}/bce_epoch",
@@ -113,13 +138,13 @@ class MultiBClassifyWrapper(pl.LightningModule):
             )
         #Compute metrics in one epoch
         with torch.no_grad():
-           self.evaluate(pred, target, phase)
+           self.evaluate(pred, target, phase, test)
  
     #TODO: Many metrics are not correctly implemented, we neead to define own metrics using torchmetrics
-    def evaluate(self, pred, target, phase):
+    def evaluate(self, pred, target, phase, test):
         for _metric in self.metrics:
             getattr(self, f"{phase}_{_metric}").update(pred, target)
-            self.log(f"{phase}/{_metric}", getattr(self, f"{phase}_{_metric}"), on_step=False, on_epoch=True, logger=True, prog_bar=True)
+            self.log(f"{phase}/{_metric}", getattr(self, f"{phase}_{_metric}"), on_step=test, on_epoch=True, logger=True, prog_bar=True)
 
     def configure_optimizers(self, 
         learning_rate: float = 1e-3,

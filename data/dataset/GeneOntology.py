@@ -3,7 +3,7 @@ import glob
 import logging
 import os
 import sys
-sys.path.append("/root/Generative-Models/DiffSE")
+sys.path.append("/root/Generative-Models/PGSL-RA")
 # from functools import partial
 import pdb
 from typing import Dict, Mapping, Optional
@@ -58,7 +58,7 @@ class Data(Dataset):
                 **kwargs):
         super().__init__()
         # self.esm_save_dir = config.dataset.esm_save_dir
-        self.feature_pipline = config.dataset.feature_pipeline
+        self.feature_pipeline = config.dataset.feature_pipeline
         self.mode = mode
         self.config = config
         self.debug = debug
@@ -228,7 +228,7 @@ class Data(Dataset):
     # A Dict contains various features with defined names
     def _process_protein(self, pdb_path: str, pname: Optional[str] = None, chain_id: Optional[str] = None):
         # data = process_decoy(path, gnn_feature, seq, self.config.decoy)
-        data = get_pipeline(self.feature_pipline)(pdb_path, pname, getattr(self.config, "decoy", None))
+        data = get_pipeline(self.feature_pipeline)(pdb_path, pname, getattr(self.config, "decoy", None))
         return data
 
     def _connect_db(self):

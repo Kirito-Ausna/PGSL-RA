@@ -12,7 +12,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GO-MF-IPAFormer-Cluster")
+@register_config("EC_AlphaEncoder")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -32,27 +32,10 @@ NUM_RES = "num residues placeholder"
 
 config = mlc.ConfigDict(
     {
-        "globals": {
-            "blocks_per_ckpt": blocks_per_ckpt,
-            "chunk_size": chunk_size,
-            "c_z": c_z,
-            "c_m": c_m,
-            "c_t": c_t,
-            "c_e": c_e,
-            "c_s": c_s,
-            "eps": eps,
-            "max_recycling_iters":2,
-            "num_steps":100,
-            "pretrain": True,
-            "metric": "f1_max",
-        },
         "data":{
             "dataset":{
-                "name": "GO",
-                "root_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/",
-                "gfeat_save_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/Graph_Feature/",
-                "esm_save_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/ESM_Feature/",
-                "branch": "MF",
+                "name": "EC",
+                "root_dir": "/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/pdbs/",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
@@ -127,15 +110,15 @@ config = mlc.ConfigDict(
             "train": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 384,
+                "crop_size": 256,
                 "supervised": True,
                 "clamp_prob": 0.9,
-                "uniform_recycling": False,
+                "uniform_recycling": True,
             },
             "data_module":{
                 "train_dataloader": {
-                    "batch_size": 4,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
-                    "num_workers": 32,
+                    "batch_size": 2,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
+                    "num_workers": 16,
                 },
                 "val_dataloader":{
                     "batch_size": 1, # Can only be 1, cause we don't apply cropping to proteins in the validation set
@@ -147,17 +130,17 @@ config = mlc.ConfigDict(
                 }
             }
         },
-        "downstream":{
-            "encoder": "alpha_encoder",
-            "encoder_checkpoint": "/huangyufei/DiffSE/train_result_nips/RefineDiff/IPAFormer/refinement/checkpoints/RefineDiff-epoch47-delta_gdt_ts=0.003.ckpt",
-            "head":{
-                "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-                "model_out_dim": 384,
-            },
-            "metric": ['f1_max'],
-            "encoder_fixed": False,
-            "reweight": False,
+        "globals": {
+            "blocks_per_ckpt": blocks_per_ckpt,
+            "chunk_size": chunk_size,
+            "c_z": c_z,
+            "c_m": c_m,
+            "c_t": c_t,
+            "c_e": c_e,
+            "c_s": c_s,
+            "eps": eps,
+            "max_recycling_iters":2,
+            "num_steps":100
         },
         "model":{
             "_mask_trans": False,
@@ -261,6 +244,18 @@ config = mlc.ConfigDict(
                 "inf": 1e5,
             },
         },
+
+        "downstream":{
+            "encoder": "alpha_encoder",
+            "head":{
+                "task_num": 538,
+                "num_mlp_layers": 3,
+                "model_out_dim": 384,
+            },
+            "metric": ['f1_max'],
+            "encoder_fixed": False,
+            "reweight": False,
+        },
         "loss": {
             "distogram": {
                 "min_bin": 2.3125,
@@ -323,13 +318,6 @@ config = mlc.ConfigDict(
                 "enabled": tm_enabled,
             },
             "eps": eps,
-        },
-        "train": {
-            "base_lr": 0.,
-            "max_lr":1e-4,
-            "warmup_no_steps": 20400,
-            "start_decay_after_n_steps": 100000,
-            "decay_every_n_steps": 6800, 
         }
     }
 )

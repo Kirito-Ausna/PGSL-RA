@@ -11,7 +11,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GOMF_Graphformer")
+@register_config("GOBP_UniMol")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -33,12 +33,13 @@ config = mlc.ConfigDict(
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
             "pretrain": False,
             "metric": "f1_max",
+            "max_epochs": 75,
         },
         "data":{
             "dataset": {
                 "name": "GO",
                 "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "MF",
+                "branch": "BP",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
@@ -99,11 +100,11 @@ config = mlc.ConfigDict(
             },
         },
         "downstream":{
-            "encoder": "uni_encoder",
+            "encoder": "uni-mol",
             "encoder_checkpoint": None,
             "head": {
                 "model_out_dim": encoder_embed_dim,
-                "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
             },
             "metric": ['f1_max'],
@@ -114,24 +115,18 @@ config = mlc.ConfigDict(
             "embedder": {
                 "protein_angle_embedder": {
                     "c_in": 57,
-                    "c_m": encoder_embed_dim*2,
+                    "c_m": encoder_embed_dim // 2,
                     "c_out": encoder_embed_dim,
                 },
                 "gaussian_layer": {
                     "kernel_num": 16,
                     "num_pair_distance": 25
                 },
-                "bias_proj_layer": {
+                "non_linear_head": {
                     "input_dim": pair_embed_dim,# 25*16 = 400
                     "out_dim": num_attention_heads,
                     "activation_fn": activation_fn,
                     "hidden": 2*num_attention_heads,
-                },
-                "centrality_proj_layer":{
-                    "input_dim": pair_embed_dim,
-                    "out_dim": encoder_embed_dim,
-                    "activation_fn": activation_fn,
-                    "hidden": 2*encoder_embed_dim,
                 }   
             },
             "graphformer": {
@@ -170,9 +165,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 8600,
+            "warmup_no_steps": 4300,
             "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 860
+            "decay_every_n_steps": 430
         }
 
     }

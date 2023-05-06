@@ -21,7 +21,6 @@ class BatchCollator:
         self.stage = stage
 
     def __call__(self, raw_prots) -> FeatureDict:
-        # return 1
         processed_prots = []
         # get the max sequence length in a batch
         max_seq_len = max([prot["decoy_seq_mask"].shape[0] for prot in raw_prots])

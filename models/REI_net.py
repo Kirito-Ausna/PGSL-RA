@@ -9,8 +9,8 @@ from models._base import register_model
 from data.data_transform import atom37_to_rigids
 from utils.rigid_utils import Rigid
 
-@register_model("uni_encoder")
-class UniEncoder(nn.Module):
+@register_model("REI_net")
+class REINet(nn.Module):
     def __init__(self, config):
         """
         Args:

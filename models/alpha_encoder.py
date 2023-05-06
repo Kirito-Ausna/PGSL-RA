@@ -28,6 +28,7 @@ from utils.rigid_utils import Rigid
 
 # from openfold.utils.rigid_utils import Rigid, Rotation
 # from utils import residue_constants
+# just like the uni-mol plus
 @register_model("alpha_encoder")
 class AlphaEncoder(nn.Module):
     def __init__(self, config):

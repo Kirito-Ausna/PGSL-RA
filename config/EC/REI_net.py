@@ -11,7 +11,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GOCC_Graphformer")
+@register_config("EC_IPAEncoder")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c
@@ -33,17 +33,17 @@ config = mlc.ConfigDict(
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
             "pretrain": False,
             "metric": "f1_max",
+            "max_epochs": 75,
         },
         "data":{
             "dataset": {
-                "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "CC",
+                "name": "EC",
+                "root_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+                "processed_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/processed/",
                 "esm_save_dir": None,
             },
             "common":{
@@ -98,23 +98,27 @@ config = mlc.ConfigDict(
                 },
             },
         },
+
+
         "downstream":{
-            "encoder": "uni_encoder",
+            "encoder": "REI_net",
             "encoder_checkpoint": None,
             "head": {
                 "model_out_dim": encoder_embed_dim,
-                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "task_num": 538, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
             },
-            "metric": ['f1_max'],
+            "metric": ['f1_max','auprc_micro'],
             "encoder_fixed": False,
             "reweight": False,
         },
+
+
         "model": {
             "embedder": {
                 "protein_angle_embedder": {
                     "c_in": 57,
-                    "c_m": encoder_embed_dim // 2,
+                    "c_m": encoder_embed_dim*2,
                     "c_out": encoder_embed_dim,
                 },
                 "gaussian_layer": {
@@ -134,23 +138,8 @@ config = mlc.ConfigDict(
                     "hidden": 2*encoder_embed_dim,
                 }   
             },
-            "graphformer": {
-                "encoder_layers": 1, # original 15
-                "embed_dim": encoder_embed_dim,
-                "ffn_embed_dim": encoder_ffn_embed_dim,
-                "attention_heads": num_attention_heads,
-                "emb_dropout": 0.1,
-                "dropout": 0.1,
-                "attention_dropout": 0.1,
-                "activation_dropout": 0.1,
-                "max_seq_len": max_seq_len,
-                "activation_fn": activation_fn,
-                # "pooler_activation_fn": "tanh",
-                "post_ln": False,
-                "no_final_head_layer_norm": True,
-            },
             "ipaformer": {
-                "no_blocks": 5,
+                "no_blocks": 6,
                 "c_s": encoder_embed_dim,
                 "c_z": num_attention_heads,
                 "c_ipa": 16,
@@ -170,9 +159,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 8600,
-            "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 860
+            "warmup_no_steps": 2650, # 5 epochs
+            "start_decay_after_n_steps": 26500, # 50 epochs
+            "decay_every_n_steps": 265 # 1 epoch
         }
 
     }
