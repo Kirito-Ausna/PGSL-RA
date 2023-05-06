@@ -20,7 +20,7 @@ from pytorch_lightning.utilities.seed import seed_everything
 
 from config._base import get_config
 from data.data_module import UnifiedDataModule
-from lightningmodule._base import get_task
+from lightning_module._base import get_task
 from utils.ema import EMA
 
 
@@ -64,9 +64,9 @@ def main(args):
             filename="RefineDiff-epoch{epoch:02d}-"+metric+"={val/"+metric+":.3f}",
             auto_insert_metric_name=False,
             monitor="val/"+metric,
-            save_top_k=3,
+            save_top_k=2,
             mode="max",
-            save_last=True,
+            save_last=False,
             save_on_train_epoch_end=False
         )
         callbacks.append(mc)
@@ -106,7 +106,8 @@ def main(args):
         strategy=strategy,
         callbacks=callbacks,
         logger=loggers,
-        accelerator="gpu"
+        accelerator="gpu",
+        max_epochs=config.globals.max_epochs
     )
 
     if(args.resume_model_weights_only):
@@ -228,10 +229,10 @@ if __name__ == "__main__":
 
     parser = pl.Trainer.add_argparse_args(parser)
 
-    # Disable the initial validation pass
-    # parser.set_defaults(
-    #     num_sanity_val_steps=0,
-    # )
+    #Disable the initial validation pass
+    parser.set_defaults(
+        num_sanity_val_steps=0,
+    )
     
     args = parser.parse_args()
 

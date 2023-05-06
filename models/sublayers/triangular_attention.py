@@ -22,7 +22,7 @@ class TriangleAttention(nn.Module):
             c_in:
                 Input channel dimension
             c_hidden:
-                Overall hidden channel dimension (not per-head)
+                Per-head hidden dimension
             no_heads:
                 Number of attention heads
         """

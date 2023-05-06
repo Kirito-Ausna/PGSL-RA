@@ -1,21 +1,27 @@
 import csv
 import glob
+import logging
 import os
+import sys
+sys.path.append("/root/Generative-Models/PGSL-RA")
+# from functools import partial
 import pdb
-from functools import partial
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Dict, Mapping, Optional
 
 import ml_collections as mlc
 import numpy as np
-import pytorch_lightning as pl
+# import pytorch_lightning as pl
 import torch
 from torch.utils.data import Dataset
 from torchdrug import utils
 
 from data.dataset._base import register_dataset
-from data.feature_pipeline import process_decoy
-from utils import Utils
-
+from data.pipeline_base import get_pipeline
+# from utils import Utils
+from tqdm.auto import tqdm
+import lmdb
+import joblib
+import pickle
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 
@@ -43,44 +49,68 @@ class Data(Dataset):
     # md5 = "376be1f088cd1fe720e1eaafb701b5cb"
     branches = ["MF", "BP", "CC"]
     test_cutoffs = [0.3, 0.4, 0.5, 0.7, 0.95]
+    MAP_SIZE = 512*(1024*1024*1024)  # 512GB
     def __init__(self,
                 config: mlc.ConfigDict,
                 mode: str="train",
                 debug: bool=False,
+                reset: bool=False,
                 **kwargs):
         super().__init__()
-        root_dir = config.dataset.root_dir
-        test_cutoff = config.dataset.test_cutoff
-        branch = config.dataset.branch
-        self.gfeat_save_dir = config.dataset.gfeat_save_dir
-        self.esm_save_dir = config.dataset.esm_save_dir
-        if not os.path.exists(self.gfeat_save_dir):
-            os.makedirs(self.gfeat_save_dir)
-        root_dir = os.path.expanduser(root_dir)
-        self.path = root_dir
-        if branch not in self.branches:
-            raise ValueError("Unknown branch `%s` for GeneOntology dataset" % branch)
-        self.branch = branch
-        if test_cutoff not in self.test_cutoffs:
-            raise ValueError("Unknown test cutoff `%.2f` for EnzymeCommission dataset" % test_cutoff)
-        self.test_cutoff = test_cutoff
+        # self.esm_save_dir = config.dataset.esm_save_dir
+        self.feature_pipeline = config.dataset.feature_pipeline
         self.mode = mode
         self.config = config
         self.debug = debug
-        self.feat_class = {'seq': {'node': ['rPosition',], 'edge': ['SepEnc']}, 
-                           'struc': {'node': ['SS3', 'RSA', 'Dihedral'], 
-                           'edge': ['Ca1-Ca2', 'Cb1-Cb2', 'N1-O2', 'Ca1-Cb1-Cb2', 'N1-Ca1-Cb1-Cb2', 'Ca1-Cb1-Cb2-Ca2']}}
-        exlude_pdb_ids = []
-        tsv_file = os.path.join(self.path, "nrPDB-GO_annot.tsv") # MulticlassBinaryClassification label
+
+        root_dir = config.dataset.root_dir
+        root_dir = os.path.expanduser(root_dir)
+        self.path = root_dir
+
+        test_cutoff = config.dataset.test_cutoff
+        if test_cutoff not in self.test_cutoffs:
+            raise ValueError("Unknown test cutoff `%.2f` for GeneOntology dataset" % test_cutoff)
+        self.test_cutoff = test_cutoff
+
+        branch = config.dataset.branch
+        if branch not in self.branches:
+            raise ValueError("Unknown branch `%s` for GeneOntology dataset" % branch)
+        self.branch = branch
+
+        self.processed_dir = os.path.join(config.dataset.processed_dir, self.mode)
+        self.feature_saved_mode = False
+        if self.processed_dir is not None:
+            self.feature_saved_mode = True
+        if self.feature_saved_mode and not os.path.exists(self.processed_dir):
+            os.makedirs(self.processed_dir)
+        
+        self.exlude_pdb_ids = []
+        self.tsv_file = os.path.join(self.path, "nrPDB-GO_annot.tsv") # MulticlassBinaryClassification label
+        self.load_data_entries()
+
+        if len(self.exlude_pdb_ids) > 0:
+            self.filter_pdb(self.exlude_pdb_ids)# filter out similar proteins in test set
+        self.dicard_nonstandard_pdb()
+        
+        if self.feature_saved_mode:
+            self.db_conn = None
+            self._load_structures(reset)
+            self._connect_db()
+
+        pdb_ids = [os.path.basename(pdb_file).split("_")[0] for pdb_file in self.pdb_files]
+        self.pdb_ids = pdb_ids
+        self.load_annotation(self.tsv_file, pdb_ids)
+
+    def load_data_entries(self):
         if self.mode == "predict":
             csv_file = os.path.join(self.path, "nrPDB-GO_test.csv")
             with open(csv_file, "r") as fin:
                 reader = csv.reader(fin, delimiter=",")
-                idx = self.test_cutoffs.index(test_cutoff) + 1
+                idx = self.test_cutoffs.index(self.test_cutoff) + 1
                 _ = next(reader)
                 for line in reader:
                     if line[idx] == "0": #Note: It's proteins that are not included
-                        exlude_pdb_ids.append(line[0])
+                        self.exlude_pdb_ids.append(line[0])
             path = os.path.join(self.path, "test")
         elif self.mode == "train":
             path = os.path.join(self.path, "train")
@@ -88,22 +118,62 @@ class Data(Dataset):
             csv_file = os.path.join(self.path, "nrPDB-GO_test.csv")
             with open(csv_file, "r") as fin:
                 reader = csv.reader(fin, delimiter=",")
-                idx = self.test_cutoffs.index(test_cutoff) + 1
+                idx = self.test_cutoffs.index(self.test_cutoff) + 1
                 _ = next(reader)
                 for line in reader:
                     if line[idx] == "0": #Note: It's proteins that are not included
-                        exlude_pdb_ids.append(line[0])
+                        self.exlude_pdb_ids.append(line[0])
             path = os.path.join(self.path, "test")
         self.pdb_files = glob.glob(os.path.join(path, "*.pdb")) #pdb file list in train/valid/test set
         if self.debug:
             self.pdb_files = self.pdb_files[:100]
-        if len(exlude_pdb_ids) > 0:
-            self.filter_pdb(exlude_pdb_ids)# filter out similar proteins in test set
-        self.dicard_nonstandard_pdb()
-        pdb_ids = [os.path.basename(pdb_file).split("_")[0] for pdb_file in self.pdb_files]
-        self.pdb_ids = pdb_ids
-        self.load_annotation(tsv_file, pdb_ids)
+    
+    @property
+    def _structure_cache_path(self):
+        return os.path.join(self.processed_dir, 'structures.lmdb')
+    
+    def _load_structures(self, reset):
+        if not os.path.exists(self._structure_cache_path) or reset:
+            if os.path.exists(self._structure_cache_path):
+                os.unlink(self._structure_cache_path)
+            self._preprocess_structures()
         
+    def _preprocess_structures(self):
+        tasks = []
+        for entry in self.pdb_files:
+            if not os.path.exists(entry):
+                logging.warning("PDB file `%s` does not exist" % entry)
+                continue
+            tasks.append(
+                {
+                    "pdb_path": entry,
+                }
+            )
+        data_list = joblib.Parallel(
+            n_jobs=max(joblib.cpu_count()//2, 1),
+        )(
+            joblib.delayed(self._process_protein)(task["pdb_path"])
+            for task in tqdm(tasks, dynamic_ncols=True ,desc="Preprocessing structures")
+        )
+
+        db_conn = lmdb.open(
+            self._structure_cache_path,
+            map_size = self.MAP_SIZE,
+            create=True,
+            subdir=False,
+            readonly=False,
+        )
+        ids = []
+        with db_conn.begin(write=True, buffers=True) as txn:
+            for data in tqdm(data_list, dynamic_ncols=True, desc='Write to LMDB'):
+                if data is None:
+                    continue
+                ids.append(data['pdb_id'])
+                txn.put(data["pdb_id"].encode('utf-8'), pickle.dumps(data))
+        with open(self._structure_cache_path + '-ids', 'wb') as f:
+            pickle.dump(ids, f)
+
+
     def filter_pdb(self, exclude_pdb_ids):
         exclude_pdb_ids = set(exclude_pdb_ids)
         pdb_files = []
@@ -156,77 +226,47 @@ class Data(Dataset):
         return list(self.targets.keys())
 
     # A Dict contains various features with defined names
-    def _process_decoy(self, path, gnn_feature, seq, chain_id: Optional[str] = None):
-        data = process_decoy(path, gnn_feature, seq, self.config.decoy)
+    def _process_protein(self, pdb_path: str, pname: Optional[str] = None, chain_id: Optional[str] = None):
+        # data = process_decoy(path, gnn_feature, seq, self.config.decoy)
+        data = get_pipeline(self.feature_pipeline)(pdb_path, pname, getattr(self.config, "decoy", None))
         return data
 
-    def __get_seq_feature(self, pdb_file, pname):
-        seq = Utils.get_seqs_from_pdb(pdb_file)
-        seq = seq.replace('X','')
-        # pdb.set_trace()
-        # node_feat
-        # save_path = "/usr/commondata/local_public/protein-datasets/EnzymeCommission/ESMFeature/"
-        # save_path = os.path.dirname(self.path) + "/ESMFeature/"
-        node_feat = {
-            # 'onehot': Utils.get_seq_onehot(seq),
-            'rPosition': Utils.get_rPos(seq),
-            # 'esm':Utils.get_esm_embedding(seq, pname, save_path)
-        }
-        # edge_feat
-        edge_feat = {
-            'SepEnc': Utils.get_SepEnc(seq),
-        }
-        return node_feat, edge_feat, len(seq), seq
+    def _connect_db(self):
+        if self.db_conn is not None:
+            return
+        self.db_conn = lmdb.open(
+            self._structure_cache_path,
+            map_size=self.MAP_SIZE,
+            create=False,
+            subdir=False,
+            readonly=True,
+            lock=False,
+            readahead=False,
+            meminit=False,
+        )
+        # self.feature_list = {} # store all data in cpu for the sake of speed
+        # self.data = pickle.loads(self.db_conn)
+    
+    def _get_structure(self, pname):
+        # data = self.feature_list.get(pname, None)
+        # if data is None:
+        with self.db_conn.begin() as txn:
+            data = pickle.loads(txn.get(pname.encode()))
+            # self.feature_list[pname] = data
+        return data
 
-    def __get_struc_feat(self, pdb_file, seq_len):
-        # node feat
-        node_feat = Utils.get_DSSP_label(pdb_file, [1, seq_len])
-        # atom_emb
-        embedding = Utils.get_atom_emb(pdb_file, [1, seq_len])
-        # Utils.get_atom_emb(pdb_file, [1, seq_len])
-        node_feat['atom_emb'] = {
-            'embedding': embedding.astype(np.float32),
-        }
-        # edge feat
-        edge_feat = Utils.calc_geometry_maps(pdb_file, [1, seq_len], self.feat_class['struc']['edge'])
-        # return None
-        return node_feat, edge_feat
 
     def __getitem__(self, index):
-        # return 1
         if torch.is_tensor(index): index = index.tolist()
         # Get target name
         pname = self.pdb_ids[index]
         # Get decoy path
         pdb_file = self.pdb_files[index]
-        # Add GNNRefine Features, node as single feature, edge as pair feature
-        feature = {"node": None, "edge": None}
-        file_path = os.path.join(self.gfeat_save_dir, pname + ".pt")
-        if not os.path.exists(file_path):
-            # seq feature
-            seq_node_feat, seq_edge_feat, seq_len, seq = self.__get_seq_feature(pdb_file, pname)
-            for _feat in self.feat_class['seq']['node']:
-                feature['node'] = seq_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], seq_node_feat[_feat]), axis=-1)
-            # print(feature['node'].shape)
-            for _feat in self.feat_class['seq']['edge']:
-                feature['edge'] = seq_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], seq_edge_feat[_feat]), axis=-1)
-            # struc feature
-            struc_node_feat, struc_edge_feat = self.__get_struc_feat(pdb_file, seq_len)
-            # self.__get_struc_feat(pdb_file, seq_len)
-            for _feat in self.feat_class['struc']['node']:
-                feature['node'] = struc_node_feat[_feat] if feature['node'] is None else np.concatenate((feature['node'], struc_node_feat[_feat]), axis=-1)
-            for _feat in self.feat_class['struc']['edge']:
-                feature['edge'] = struc_edge_feat[_feat] if feature['edge'] is None else np.concatenate((feature['edge'], struc_edge_feat[_feat]), axis=-1)
-          
-            feature = np.nan_to_num(feature)
-            feature['node'] = feature['node'].astype(np.float32)
-            feature['edge'] = feature['edge'].astype(np.float32)
-            feature['atom_emb'] = struc_node_feat['atom_emb']['embedding']
-            feats = self._process_decoy(pdb_file, feature, seq)
-            torch.save(feats, file_path)
+
+        if self.feature_saved_mode:
+            feats = self._get_structure(pname)
         else:
-            feats = torch.load(file_path)
-            seq = None
+            feats = self._process_protein(pdb_file, pname)
         # ESM feature
         # feats['esm_emb'] = Utils.get_esm_embedding(seq, pname, self.esm_save_dir)
         # Prepare groundtruth
@@ -237,3 +277,28 @@ class Data(Dataset):
         
         
         return feats
+
+if __name__ == '__main__':
+    import argparse
+    from config._base import get_config
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_name", type=str, default="GOMF_Graphformer")
+    parser.add_argument("--mode", type=str, default="train")
+    parser.add_argument("--debug", type=bool, default=False)
+    parser.add_argument("--reset", type=bool, default=True)
+    args = parser.parse_args()
+    if args.reset:
+        sure = input('Sure to reset? (y/n): ')
+        if sure != 'y':
+            exit()
+    config = get_config(args.config_name)()
+    # pdb.set_trace()
+    data_config = config.data
+    dataset = Data(data_config, args.mode, debug=args.debug, reset=args.reset)
+    data = dataset[0]
+    # pdb.set_trace()
+    # print(data["edge_type"].shape)
+    # print(data["dist"].shape)
+    print(data.keys())
+    print(len(dataset))
+

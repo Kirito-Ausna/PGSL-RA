@@ -12,7 +12,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("GO-BP-IPAFormer-Cluster")
+@register_config("GO-BP-AlphaEncoder-Cluster")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c

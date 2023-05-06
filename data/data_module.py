@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import torch
 
 from data.feature_pipeline import process_features
-from utils.tenor_utils import dict_multimap
+from utils.tensor_utils import dict_multimap
 
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
@@ -21,11 +21,12 @@ class BatchCollator:
         self.stage = stage
 
     def __call__(self, raw_prots) -> FeatureDict:
-        # return 1
         processed_prots = []
+        # get the max sequence length in a batch
+        max_seq_len = max([prot["decoy_seq_mask"].shape[0] for prot in raw_prots])
 
         for prot in raw_prots:
-            features = process_features(prot, self.stage, self.config)
+            features = process_features(prot, self.stage, self.config, max_seq_len)
             processed_prots.append(features)
 
         stack_fn = partial(torch.stack, dim=0)
@@ -64,7 +65,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.train_dataset,
                 batch_size=self.config.data_module.train_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("train")
+                collate_fn=self._gen_batch_collator("train"),
+                pin_memory=True,
             )
 
     def val_dataloader(self):
@@ -73,7 +75,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.val_dataset,
                 batch_size=self.config.data_module.val_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("eval")
+                collate_fn=self._gen_batch_collator("eval"),
+                pin_memory=True,
             )
         else:
             return None
@@ -83,7 +86,8 @@ class UnifiedDataModule(pl.LightningDataModule):
             return torch.utils.data.DataLoader(
                 self.test_dataset,
                 batch_size=self.config.data_module.predict_dataloader.batch_size,
-                collate_fn=self._gen_batch_collator("predict")
+                collate_fn=self._gen_batch_collator("predict"),
+                pin_memory=True,
             )
     
             

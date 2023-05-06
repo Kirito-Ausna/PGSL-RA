@@ -13,4 +13,5 @@ __all__ = [
 #     globals()[_m[0]] = _m[1]
 
 # Avoid needlessly cluttering the global namespace
+# del _files, _m, _modules
 del _files

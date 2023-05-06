@@ -2,7 +2,7 @@ import pytorch_lightning as pl
 import torch
 
 # from models.denoise_module import DenoiseModule
-from lightningmodule._base import register_task
+from lightning_module._base import register_task
 from models._base import get_model
 from utils import residue_constants
 from utils.loss import RefineDiffLoss, lddt_ca
@@ -11,7 +11,7 @@ from utils.superimposition import superimpose
 from utils.validation_metrics import drmsd, gdt_ha, gdt_ts
 
 
-@register_task("refine_diff")
+@register_task("PGSL_RPA")
 class RefineDiffWrapper(pl.LightningModule):
     def __init__(self, config):
         super().__init__()

@@ -5,3 +5,5 @@ __pycache__
 /train_result_nips/
 .gitignore
 *.sh
+/test/*
+/EVA_result/

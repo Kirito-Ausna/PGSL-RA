@@ -8,7 +8,7 @@ from torch.distributions.bernoulli import Bernoulli
 from typing import Dict, Optional, Tuple
 from utils import residue_constants
 from .rigid_utils import Rotation, Rigid
-from .tenor_utils import (
+from .tensor_utils import (
     tree_map,
     tensor_tree_map,
     masked_mean,

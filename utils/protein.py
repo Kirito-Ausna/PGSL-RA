@@ -14,7 +14,7 @@ from typing import Any, Mapping, Optional
 import re
 import sys
 sys.path.append("..")
-from openfold.np import residue_constants
+from utils import residue_constants
 from Bio.PDB import PDBParser
 import numpy as np
 # import pdb
@@ -49,7 +49,7 @@ class Protein:
     b_factors: np.ndarray  # [num_res, num_atom_type]
 
 
-def from_pdb_string(pdb_str: str, alt_seq: Optional[str] = None, chain_id: Optional[str] = None) -> Protein:
+def from_pdb_string(pdb_str: str, chain_id: Optional[str] = None) -> Protein:
     """Takes a PDB string and constructs a Protein object.
 
     WARNING: All non-standard residue types will be converted into UNK. All
@@ -110,7 +110,7 @@ def from_pdb_string(pdb_str: str, alt_seq: Optional[str] = None, chain_id: Optio
         mask = np.zeros((residue_constants.atom_type_num,))
         res_b_factors = np.zeros((residue_constants.atom_type_num,))
         for atom in res:
-            if atom.name not in residue_constants.atom_types:
+            if atom.name not in residue_constants.atom_types or atom.parent.get_id()[0] != ' ':
                 continue
             pos[residue_constants.atom_order[atom.name]] = atom.coord
             mask[residue_constants.atom_order[atom.name]] = 1.0

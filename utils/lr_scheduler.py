@@ -19,7 +19,7 @@ class AlphaFoldLRScheduler(torch.optim.lr_scheduler._LRScheduler):
         warmup_no_steps: int = 1000,
         start_decay_after_n_steps: int = 5960,
         decay_every_n_steps: int = 500,
-        decay_factor: float = 0.95,
+        decay_factor: float = 0.99,
     ):
         step_counts = {
             "warmup_no_steps": warmup_no_steps,

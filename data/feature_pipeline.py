@@ -1,5 +1,5 @@
 import sys
-
+import os
 # from Manifold.openfold.data.input_pipeline import compose
 sys.path.append("..")
 import copy
@@ -16,13 +16,17 @@ from data import data_transform
 from utils import protein
 from utils import residue_constants as rc
 from utils.rigid_utils import Rigid, Rotation
+from utils.Utils import get_gnn_feature
 
-from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn
+from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn, atom37_to_rigid_tensors
+from data.pipeline_base import register_pipeline
 
 TensorDict = Dict[str, torch.Tensor]
 FeatureDict = Mapping[str, np.ndarray]
 ModelOutput = Mapping[str, Any]  # Is a nested dict.
 
+# Used in the Model foward to increase speed in pytorch parrallel
+#####################################################################################
 def build_decoy_angle_feats(decoy_feats):
     torsion_func = atom37_to_torsion_angles("decoy_")
     decoy_feats = torsion_func(decoy_feats)
@@ -59,6 +63,42 @@ def build_decoy_angle_feats(decoy_feats):
 
     return decoy_feats
 
+def build_unimol_angle_feats(decoy_feats):
+    torsion_func = atom37_to_torsion_angles("decoy_")
+    decoy_feats = torsion_func(decoy_feats)
+    if decoy_feats is None:
+        logging.warning(f"Some error occurs in atom37_to_torsion_angles")
+        return None
+    decoy_aatype = decoy_feats["decoy_aatype"]
+    torsion_angles_sin_cos = decoy_feats["decoy_torsion_angles_sin_cos"]
+    alt_torsion_angles_sin_cos = decoy_feats[
+        "decoy_alt_torsion_angles_sin_cos"
+    ]
+    torsion_angles_mask = decoy_feats["decoy_torsion_angles_mask"]
+    # pdb.set_trace()
+    # try:
+    decoy_feats["decoy_angle_feats"] = torch.cat(
+        [
+            nn.functional.one_hot(decoy_aatype, 22),
+            torsion_angles_sin_cos.reshape(
+                *torsion_angles_sin_cos.shape[:-2], 14
+            ),
+            alt_torsion_angles_sin_cos.reshape(
+                *alt_torsion_angles_sin_cos.shape[:-2], 14
+            ),
+            torsion_angles_mask,
+            # node_dim: (B, N, 28)
+            # decoy_feats["node"],
+        ],
+        dim=-1,
+    )
+    # except:
+        # node_feats = decoy_feats["node"]
+        # logging.warning(f"Some error occurs in decoy_angle_feats")
+        # logging.warning(f"decoy_aatype: {decoy_aatype.shape}, decoy_feats: {node_feats.shape}")
+
+    return decoy_feats
+
 def gather_edges(edges, neighbor_idx):
     neighbors = neighbor_idx.unsqueeze(-1).expand(-1, -1, -1, edges.size(-1))
     return torch.gather(edges, 2, neighbors)
@@ -81,6 +121,10 @@ def _get_rbf(A, B, E_idx=None, num_rbf=16):
         D_A_B = torch.sqrt(torch.sum((A[..., None,:] - B[...,None,:,:])**2,-1) + 1e-6) #[B, L, L]
         RBF_A_B = _rbf(D_A_B, num_rbf) #[B, L, L, 16]
     return RBF_A_B
+
+def _get_dist(A, B):
+    D_A_B = torch.sqrt(torch.sum((A[..., None,:] - B[...,None,:,:])**2,-1) + 1e-6) #[B, L, L]
+    return D_A_B
 
 def build_decoy_pair_feats(decoy_feats, min_bin, max_bin, no_bins, eps=1e-20, inf=1e8):
     # shape: [B, N, N, 15]
@@ -159,11 +203,58 @@ def build_decoy_pair_feats(decoy_feats, min_bin, max_bin, no_bins, eps=1e-20, in
     # pdb.set_trace()
     return act
 
+def build_unimol_pair_feats(decoy_feats, ca_only=False, pair_mask=None):
+    """
+        Build distance features for a protein in uni-mol style.
+    """
+    pair_lst = ['Ca-Ca', 'Ca-C', 'C-Ca', 'Ca-N', 'N-Ca', 'Ca-O', 'O-Ca', 'C-C', 'C-N', 'N-C', 'C-O', 'O-C', 'N-N', 'N-O', 'O-N', 'O-O','Cb-Cb','Ca-Cb','Cb-Ca','C-Cb','Cb-C','N-Cb','Cb-N','O-Cb','Cb-O']
+    n, ca, c, o, cb= [rc.atom_order[a] for a in ["N", "CA", "C", "O", "CB"]]
+    if not ca_only:
+        atom_N = decoy_feats["decoy_all_atom_positions"][..., n, :]
+        atom_Ca = decoy_feats["decoy_all_atom_positions"][..., ca, :]
+        atom_C = decoy_feats["decoy_all_atom_positions"][..., c, :]
+        atom_O = decoy_feats["decoy_all_atom_positions"][..., o, :]
+        atom_Cb = decoy_feats["decoy_all_atom_positions"][..., cb, :]
+        dist_list = []
+        for pair in pair_lst:
+            atom1, atom2 = pair.split('-')
+            dist = _get_dist(vars()['atom_' + atom1], vars()['atom_' + atom2])
+            dist_list.append(dist)
+        # Use the average of all distances as the distance feature between two residues
+        # dist = torch.stack(dist_list, dim=-1).mean(dim=-1) # shape: [B, N, N]
+        dist = torch.stack(dist_list, dim=-1) # shape: [B, N, N, 25] # Use all distances as the distance feature between two residues
+    else:
+        atom_Ca = decoy_feats["decoy_all_atom_positions"][..., ca, :]
+        # print(atom_Ca.shape)
+        dist = _get_dist(atom_Ca, atom_Ca)
+    # pdb.set_trace()
+    # print(dist.shape)
+    # print(pair_mask.shape)
+    if pair_mask is None:
+        seq_mask = decoy_feats["decoy_seq_mask"]
+        pair_mask = seq_mask[..., None] * seq_mask[..., None, :]
+
+    dist = dist * pair_mask[..., None]
+
+    # create edge type
+    # b_s = dist.shape[0]
+    num_types = len(rc.restypes_with_x)
+    aatype = decoy_feats["decoy_aatype"] # shape: [B, N] or [N]
+    offset = aatype[..., :, None] * num_types + aatype[..., None, :] # shape: [B, N, N] or [N, N]
+    # decoy_feats["dist"] = dist
+    # decoy_feats["edge_type"] = offset
+    # return decoy_feats
+    return dist, offset
+#######################################################################################################################
+# Feature extraction pipeline in dataset for a give encoder
+#######################################################################################################################
+@register_pipeline("IPAFormer")
 def process_decoy(
-    pdb_path: str, 
-    gnn_features: dict,
-    alt_seq: str,
-    decoy_config,
+    pdb_path: str,
+    pname: str, 
+    # gnn_features: dict,
+    # alt_seq: str,
+    decoy_config: Optional[Dict[str, Any]] = None,
     chain_id: Optional[str] = None,) -> FeatureDict:
     """
         Generate and Assemble features for a decoy in a PDB file.
@@ -171,20 +262,23 @@ def process_decoy(
     with open(pdb_path, "r") as f:
         pdb_str = f.read()
 
-    protein_object = protein.from_pdb_string(pdb_str, alt_seq, chain_id)
+    protein_object = protein.from_pdb_string(pdb_str, chain_id)
     #read pdb extract raw feature
     # pdb.set_trace()
-    seqIOlen = len(alt_seq)
+    # seqIOlen = len(alt_seq)
+    
+    decoy_feats = {}
+    decoy_feats = get_gnn_feature(decoy_feats, pdb_path, pname)
+    seqIOlen = len(decoy_feats["node"])
     proteinlen = len(protein_object.aatype)
     correct_seq_len = min(seqIOlen, proteinlen)
-    decoy_feats = {}
     decoy_feats["decoy_all_atom_positions"] = protein_object.atom_positions[0:correct_seq_len].astype(np.float32)
     decoy_feats["decoy_all_atom_mask"] = protein_object.atom_mask[0:correct_seq_len].astype(np.float32)
     decoy_feats["decoy_aatype"] = protein_object.aatype[0:correct_seq_len]
-    gnn_features["node"] = gnn_features["node"][0:correct_seq_len]
-    gnn_features["edge"] = gnn_features["edge"][0:correct_seq_len, 0:correct_seq_len]
+    decoy_feats["node"] = decoy_feats["node"][0:correct_seq_len]
+    decoy_feats["edge"] = decoy_feats["edge"][0:correct_seq_len, 0:correct_seq_len]
     # gnn_features["atom_emb"] = gnn_features["atom_emb"][0:correct_seq_len]
-    # gnn_features["esm_emb"] = gnn_features["esm_emb"][:,0:correct_seq_len]
+    # gnn_features["esm_emb"] = gnn_features["esm_emb"][:,0:correct_seq_len] # Don't need to slice because of the padding and cropping
     num_res = decoy_feats["decoy_seq_length"] = correct_seq_len
     if correct_seq_len != decoy_feats["decoy_aatype"].shape[0]:
         # pdb.set_trace()
@@ -192,7 +286,7 @@ def process_decoy(
     decoy_feats["decoy_residue_index"] = np.array(range(num_res))
     feature_names = ["decoy_all_atom_positions", "decoy_all_atom_mask", "decoy_aatype","decoy_seq_length", "decoy_residue_index","node","edge","atom_emb","esm_emb"]
     # feature_names = ["decoy_all_atom_positions", "decoy_all_atom_mask", "decoy_aatype","decoy_seq_length", "decoy_residue_index"]
-    decoy_feats.update(gnn_features)
+    # decoy_feats.update(gnn_features)
     # pdb.set_trace()
     decoy_feats = np_to_tensor_dict(np_example=decoy_feats, features=feature_names)
     # Shifted the CoM to the center
@@ -222,6 +316,85 @@ def process_decoy(
     # pdb.set_trace()
     return decoy_feats
 
+@register_pipeline("Graphformer")
+def process_protein(
+    pdb_path: str,
+    pname: Optional[str] = None,
+    decoy_config: Optional[Dict[str, Any]] = None,
+    chain_id: Optional[str] = None) -> FeatureDict:
+    """
+        Generate and Assemble features for a protein in a PDB file.
+    """
+    with open(pdb_path, "r") as f:
+        pdb_str = f.read()
+    
+    protein_object = protein.from_pdb_string(pdb_str, chain_id)
+    protein_feats = {}
+    protein_feats["decoy_aatype"] = protein_object.aatype
+    protein_feats["decoy_all_atom_positions"] = protein_object.atom_positions.astype(np.float32)
+    protein_feats["decoy_all_atom_mask"] = protein_object.atom_mask.astype(np.float32)
+    feature_names = ["decoy_all_atom_positions", "decoy_all_atom_mask", "decoy_aatype"]
+    protein_feats = np_to_tensor_dict(np_example=protein_feats, features=feature_names)
+    # Shifted the CoM to the center
+    all_atom_positions = protein_feats["decoy_all_atom_positions"]
+    all_atom_mask = protein_feats["decoy_all_atom_mask"]
+    points = torch.reshape(all_atom_positions, (-1, 3))
+    atom_num = torch.sum(all_atom_mask)
+    CoM = torch.sum(points, dim=-2) / atom_num
+    CoM = CoM[None,None,...]
+    try:
+        shifted_all_atom_positions = (all_atom_positions - CoM) * all_atom_mask[...,None]
+    except:
+        # pdb.set_trace()
+        print(pdb_path)
+        print(all_atom_positions)
+        print(all_atom_mask)
+        print(CoM)
+    protein_feats["decoy_all_atom_positions"] = shifted_all_atom_positions
+
+    protein_feats["decoy_seq_mask"] = torch.ones(
+        protein_feats["decoy_aatype"].shape, dtype=torch.float32
+    )
+    protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
+    protein_feats = build_unimol_angle_feats(protein_feats)
+    # protein_feats = build_unimol_pair_feats(protein_feats)
+    protein_feats["bb_rigid_tensors"] = atom37_to_rigid_tensors(protein_feats["decoy_aatype"], protein_feats["decoy_all_atom_positions"], protein_feats["decoy_all_atom_mask"])
+
+    return protein_feats
+
+def process_label(
+    pdb_path: str,
+    feats: FeatureDict,
+    _output_raw: bool = False,
+    chain_id: Optional[str] = None) -> FeatureDict:
+    """
+        Generate and Assemble features for a label in a PDB file.
+    """
+    with open(pdb_path, "r") as f:
+        pdb_str = f.read()
+
+    protein_object = protein.from_pdb_string(pdb_str, chain_id)
+    label_feats = {}
+    label_feats["label_all_atom_positions"] = protein_object.atom_positions.astype(np.float32)
+    label_feats["label_all_atom_mask"] = protein_object.atom_mask.astype(np.float32)
+    label_feats["label_aatype"] = protein_object.aatype
+    # label_feats["label_sequence"] = protein._aatype_to_str_sequence(protein_object.aatype)
+    features_name = ["label_all_atom_positions", "label_all_atom_mask", "label_aatype"]
+    tensor_dict = np_to_tensor_dict(np_example=label_feats, features=features_name)
+    tensor_dict["label_seq_mask"] = torch.ones(
+        tensor_dict["label_aatype"].shape, dtype=torch.float32
+    )
+    feats.update(tensor_dict)
+    nonensembled = nonensembled_transform_fns()
+    feats = compose(nonensembled)(feats)
+    # feats.update(tensors)
+
+    return feats
+
+
+###########################################################################################################################
+# Feature transformation pipeline in dataloader
+###########################################################################################################################
 def nonensembled_transform_fns():
     """Input pipeline data transformers that are not ensembled."""
     transforms = [
@@ -260,50 +433,25 @@ def compose(x, fs):
         x = f(x)
     return x
 
-def process_label(
-    pdb_path: str,
-    feats: FeatureDict,
-    _output_raw: bool = False,
-    chain_id: Optional[str] = None) -> FeatureDict:
-    """
-        Generate and Assemble features for a label in a PDB file.
-    """
-    with open(pdb_path, "r") as f:
-        pdb_str = f.read()
-
-    protein_object = protein.from_pdb_string(pdb_str, chain_id)
-    label_feats = {}
-    label_feats["label_all_atom_positions"] = protein_object.atom_positions.astype(np.float32)
-    label_feats["label_all_atom_mask"] = protein_object.atom_mask.astype(np.float32)
-    label_feats["label_aatype"] = protein_object.aatype
-    # label_feats["label_sequence"] = protein._aatype_to_str_sequence(protein_object.aatype)
-    features_name = ["label_all_atom_positions", "label_all_atom_mask", "label_aatype"]
-    tensor_dict = np_to_tensor_dict(np_example=label_feats, features=features_name)
-    tensor_dict["label_seq_mask"] = torch.ones(
-        tensor_dict["label_aatype"].shape, dtype=torch.float32
-    )
-    feats.update(tensor_dict)
-    nonensembled = nonensembled_transform_fns()
-    feats = compose(nonensembled)(feats)
-    # feats.update(tensors)
-
-    return feats
-
 def process_features(
-    raw_features: FeatureDict, mode: str, config: ml_collections.ConfigDict):
+    raw_features: FeatureDict, mode: str, config: ml_collections.ConfigDict, max_seq_length: int):
     """Crop the decoys and cooresponding groundtruths to form the batches"""
     # Turn np array into tensor if any
     # return 1
     cfg = copy.deepcopy(config)
     mode_cfg = cfg[mode]
-    num_res = int(raw_features["decoy_seq_length"])
+    # num_res = int(raw_features["decoy_seq_length"])
+    # num_res = raw_features["decoy_aatype"].shape[0]
     with cfg.unlocked():
-        if mode_cfg.crop_size is None:
+        if mode_cfg.crop_size is None: # Don't set max_seq_length here
             # if num_res <= 300:
-            mode_cfg.crop_size = num_res
+            # mode_cfg.crop_size = num_res
+            mode_cfg.crop_size = max_seq_length
             # pdb.set_trace()
             # mode_cfg.crop_size = 300
             # logging.warning("Sequence length is too long, crop to 320")
+        else:
+            mode_cfg.crop_size = min(mode_cfg.crop_size, max_seq_length) # compare max_seq_length in the batch and permitted max_seq_length in the config file
     feature_names = config.common.feat.keys()
     tensor_dict = np_to_tensor_dict(np_example= raw_features, features=feature_names)
     with torch.no_grad():

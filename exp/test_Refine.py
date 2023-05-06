@@ -17,7 +17,7 @@ from pytorch_lightning.utilities.seed import seed_everything
 
 from config._base import get_config
 from data.data_module import UnifiedDataModule
-from lightningmodule._base import get_task
+from lightning_module._base import get_task
 
 
 def seed_globally(seed=None):
