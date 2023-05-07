@@ -25,7 +25,7 @@ import pickle
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 
-# @register_dataset("EC")
+@register_dataset("EC")
 class Data(Dataset):
     # url = "https://zenodo.org/record/6622158/files/EnzymeCommission.zip"
     # md5 = "33f799065f8ad75f87b709a87293bc65"
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     from config._base import get_config
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_name", type=str, default="EC_IPAEncoder")
-    parser.add_argument("--mode", type=str, default="valid")
+    parser.add_argument("--mode", type=str, default="eval")
     parser.add_argument("--debug", type=bool, default=False)
     parser.add_argument("--reset", type=bool, default=False)
     args = parser.parse_args()

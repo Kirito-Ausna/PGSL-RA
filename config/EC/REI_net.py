@@ -11,7 +11,7 @@ def set_inf(c, inf):
         elif k == "inf":
             c[k] = inf
 
-@register_config("EC_IPAEncoder")
+@register_config("EC_REI_net")
 def model_cofig(train=False, low=False):
     c = copy.deepcopy(config)
     return c

@@ -122,11 +122,17 @@ config = mlc.ConfigDict(
                     "kernel_num": 16,
                     "num_pair_distance": 25
                 },
-                "non_linear_head": {
+                "bias_proj_layer": {
                     "input_dim": pair_embed_dim,# 25*16 = 400
                     "out_dim": num_attention_heads,
                     "activation_fn": activation_fn,
                     "hidden": 2*num_attention_heads,
+                },
+                "centrality_proj_layer":{
+                    "input_dim": pair_embed_dim,
+                    "out_dim": encoder_embed_dim,
+                    "activation_fn": activation_fn,
+                    "hidden": 2*encoder_embed_dim,
                 }   
             },
             "graphformer": {
