@@ -18,7 +18,7 @@ from models.backbone.structure_module import StructureModule
 #                                       DecoyPairEmbedder, DecoyPairStack,
 #                                       DecoyPointwiseAttention, InputEmbedder,
 #                                       OuterProductMean, RecyclingEmbedder)
-from models.encoders.embedder import (RecyclingEmbedder)
+from models.encoders.embedder import (RecyclingEmbedder,DecoyPointwiseAttention)
 from modules.common.so3 import rotation_to_so3vec, so3vec_to_rotation
 from modules.diffusion.transition import PositionTransition, RotationTransition
 from openfold.utils.rigid_utils import Rigid, Rotation
@@ -43,9 +43,9 @@ class DenoiseModule(nn.Module):
         super(DenoiseModule, self).__init__()
 
         self.config = config.model
-        # decoy_config = self.config.decoy
         # self.data_config = config.data
         # self.data_config = config.data.decoy
+        decoy_config = self.config.decoy
         self.globals = config.globals
         self.num_steps = self.globals.num_steps
 
@@ -61,9 +61,6 @@ class DenoiseModule(nn.Module):
         # self.decoy_pair_stack = DecoyPairStack(
         #     **decoy_config["decoy_pair_stack"]
         # )
-        # self.decoy_pointwise_att = DecoyPointwiseAttention(
-        #     **decoy_config["decoy_pointwise_attention"]
-        # )
         # # self.decoy_seq_stack = DecoySeqStack(
         # #     **decoy_config["decoy_seq_stack"]
         # # )
@@ -73,6 +70,9 @@ class DenoiseModule(nn.Module):
         # self.OuterProductMean = OuterProductMean(
         #    **self.config["outer_product_mean"]
         # )
+        self.decoy_pointwise_att = DecoyPointwiseAttention(
+            **decoy_config["decoy_pointwise_attention"]
+        )
         self.embed_decoy = DecoyEncoder(config)
         self.costrformer = ConstrainFormer(
             **self.config["constrainformer"]

@@ -127,14 +127,14 @@ config = mlc.ConfigDict(
             "train": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 384,
+                "crop_size": 512,
                 "supervised": True,
                 "clamp_prob": 0.9,
                 "uniform_recycling": False,
             },
             "data_module":{
                 "train_dataloader": {
-                    "batch_size": 4,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
+                    "batch_size": 2,# Can only be 1, cause we don't apply cropping to proteins in the multiple binary classification task.It's a protein-level task.
                     "num_workers": 32,
                 },
                 "val_dataloader":{
@@ -149,7 +149,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "alpha_encoder",
-            "encoder_checkpoint": "/huangyufei/DiffSE/train_result_nips/RefineDiff/IPAFormer/refinement/checkpoints/RefineDiff-epoch47-delta_gdt_ts=0.003.ckpt",
+            "encoder_checkpoint": "/huangyufei/DiffSE/train_result_nips/RefineDiff/IPAFormer/refinement_noESM/checkpoints/RefineDiff-epoch200-delta_gdt_ts=0.010.ckpt",
             "head":{
                 "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
