@@ -107,7 +107,7 @@ config = mlc.ConfigDict(
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
             },
-            "metric": ['f1_max'],
+            "metric": ['f1_max','auprc_micro'],
             "encoder_fixed": False,
             "reweight": False,
         },
