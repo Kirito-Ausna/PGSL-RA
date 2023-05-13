@@ -35,17 +35,31 @@ config = mlc.ConfigDict(
             "metric": "f1_max",
             "max_epochs": 30,
         },
+        "downstream":{
+            "encoder": "ipa_encoder",
+            "encoder_checkpoint": None,
+            "head": {
+                "model_out_dim": encoder_embed_dim,
+                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+            },
+            "metric": ['f1_max','auprc_micro'],
+            "encoder_fixed": False,
+            "reweight": False,
+        },
         "data":{
             "dataset": {
-                "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
+                "name": "GO_Pred",
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
                 "branch": "CC",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+                "processed_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/processed/predicted_structure/",
                 "esm_save_dir": None,
+                "tm_cutoff": None,
+                "plddt_cutoff": 70,
             },
             "common":{
                 "feat":{
@@ -98,18 +112,6 @@ config = mlc.ConfigDict(
                     "num_workers": 16,
                 },
             },
-        },
-        "downstream":{
-            "encoder": "ipa_encoder",
-            "encoder_checkpoint": None,
-            "head": {
-                "model_out_dim": encoder_embed_dim,
-                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-            },
-            "metric": ['f1_max','auprc_micro'],
-            "encoder_fixed": False,
-            "reweight": False,
         },
         "model": {
             "embedder": {

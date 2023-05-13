@@ -37,15 +37,19 @@ class MultiBClassifyWrapper(pl.LightningModule):
             if _metric == "auroc_micro":
                 self.train_auroc_micro = metrics.classification_metric("area_under_roc")
                 self.val_auroc_micro = metrics.classification_metric("area_under_roc")
+                self.test_auroc_micro = metrics.classification_metric("area_under_roc")
             elif _metric == "f1_max":
                 self.train_f1_max = metrics.classification_metric("f1_max")
                 self.val_f1_max = metrics.classification_metric("f1_max")
+                self.test_f1_max = metrics.classification_metric("f1_max")
             elif _metric == "auprc_micro":
                 self.train_auprc_micro = metrics.classification_metric("area_under_prc")
                 self.val_auprc_micro = metrics.classification_metric("area_under_prc")
+                self.test_auprc_micro = metrics.classification_metric("area_under_prc")
             elif _metric == "acc":
                 self.train_acc = metrics.classification_metric("accuracy")
                 self.val_acc = metrics.classification_metric("accuracy")
+                self.test_acc = metrics.classification_metric("accuracy")
             else:
                 raise ValueError("Unknown criterion `%s`" % _metric)
     

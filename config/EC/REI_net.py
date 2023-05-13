@@ -85,11 +85,11 @@ config = mlc.ConfigDict(
             },
             "data_module":{
                 "train_dataloader":{
-                    "batch_size": 16,
+                    "batch_size": 8,
                     "num_workers": 32,
                 },
                 "val_dataloader":{
-                    "batch_size": 16,
+                    "batch_size": 8,
                     "num_workers": 32,
                 },
                 "predict_dataloader":{

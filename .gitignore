@@ -8,4 +8,11 @@ __pycache__
 /test/*
 /EVA_result/
 /config/*
-
+*.tsv
+./exp/analysis/*
+./exp/data/*
+exp/data_process.ipynb
+exp/analysis/plot_motivation.py
+exp/analysis/error_analysis.ipynb
+exp/analysis/plot_motivation.py
+*.xlsx

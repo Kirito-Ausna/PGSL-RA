@@ -355,7 +355,10 @@ def process_protein(
     protein_feats["decoy_seq_mask"] = torch.ones(
         protein_feats["decoy_aatype"].shape, dtype=torch.float32
     )
-    protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
+    if pname is None:
+        protein_feats["pdb_id"] = os.path.basename(pdb_path).split("_")[0]
+    else:
+        protein_feats["pdb_id"] = pname
     protein_feats = build_unimol_angle_feats(protein_feats)
     # protein_feats = build_unimol_pair_feats(protein_feats)
     protein_feats["bb_rigid_tensors"] = atom37_to_rigid_tensors(protein_feats["decoy_aatype"], protein_feats["decoy_all_atom_positions"], protein_feats["decoy_all_atom_mask"])

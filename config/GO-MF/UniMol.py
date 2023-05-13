@@ -136,7 +136,7 @@ config = mlc.ConfigDict(
                 }   
             },
             "graphformer": {
-                "encoder_layers": 1, # original 15
+                "encoder_layers": 6, # original 15
                 "embed_dim": encoder_embed_dim,
                 "ffn_embed_dim": encoder_ffn_embed_dim,
                 "attention_heads": num_attention_heads,
