@@ -1,16 +1,16 @@
 import csv
+import pandas as pd
 import glob
 import logging
 import os
 import sys
 sys.path.append("/root/Generative-Models/PGSL-RA")
+
 import pdb
-from functools import partial
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Dict, Mapping, Optional
 
 import ml_collections as mlc
 import numpy as np
-# import pytorch_lightning as pl
 import torch
 from torch.utils.data import Dataset
 from torchdrug import utils
@@ -25,8 +25,8 @@ import pickle
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 
-@register_dataset("EC")
-class Data(Dataset):
+@register_dataset("EC_Pred")
+class ECPredData(Dataset):
     # url = "https://zenodo.org/record/6622158/files/EnzymeCommission.zip"
     # md5 = "33f799065f8ad75f87b709a87293bc65"
     """
@@ -37,105 +37,147 @@ class Data(Dataset):
     """
     test_cutoffs = [0.3, 0.4, 0.5, 0.7, 0.95]
     MAP_SIZE = 512*(1024*1024*1024)  # 512GB
-    def __init__(self,
-                config: mlc.ConfigDict, # data config
-                mode: str="train",
-                debug: bool=False,
-                reset: bool=False,
-                **kwargs):
+    def __init__(self, 
+                 config: mlc.ConfigDict,
+                 mode: str="train",
+                 debug: bool=False,
+                 reset: bool=False,
+                 **kwargs):
         super().__init__()
-        self.feature_pipeline = config.dataset.feature_pipeline
-        self.mode = mode
         self.config = config
+        self.mode = mode
         self.debug = debug
+        self.feature_pipeline = config.dataset.feature_pipeline
 
-        root_dir = config.dataset.root_dir
-        root_dir = os.path.expanduser(root_dir)
+        root_dir = os.path.expanduser(config.dataset.root_dir)
         self.path = root_dir
 
         test_cutoff = config.dataset.test_cutoff
         if test_cutoff not in self.test_cutoffs:
-            raise ValueError("Unknown test cutoff `%.2f` for EnzymeCommission dataset" % test_cutoff)
+            raise ValueError("Unknown test cutoff `%.2f` for EC dataset" % test_cutoff)
         self.test_cutoff = test_cutoff
-
-        if config.dataset.processed_dir is None:
-            self.processed_dir = None
-        else:
-            self.processed_dir = os.path.join(config.dataset.processed_dir, self.mode)
-        self.feature_saved_mode = False
-        if self.processed_dir is not None:
-            self.feature_saved_mode = True
-        if self.feature_saved_mode and not os.path.exists(self.processed_dir):
-            os.makedirs(self.processed_dir)
+        self.tm_cutoff = config.dataset.tm_cutoff
+        self.plddt_cutoff = config.dataset.plddt_cutoff
+        if self.mode == "tm_test":
+            self.tm_cutoff = config.dataset.test.tm_cutoff
+            self.plddt_cutoff = None
+        elif self.mode == "plddt_test":
+            self.plddt_cutoff = config.dataset.test.plddt_cutoff
+            self.tm_cutoff = None
         
-        self.exlude_pdb_ids = []
-        self.tsv_file = os.path.join(self.path, "nrPDB-EC_annot.tsv") # MulticlassBinaryClassification label
-        self.load_data_entry()
+        if config.dataset.processed_dir is None:
+            self.feature_save_mode = False
+        else:
+            self.feature_save_mode = True
+            if self.mode in ["train", "eval"]:
+                self.processed_dir = os.path.join(config.dataset.processed_dir, "EC_tm_"+self.mode)#default Filter according to TMScore
+                if self.plddt_cutoff is not None:
+                    self.processed_dir = os.path.join(config.dataset.processed_dir, "EC_plddt_"+self.mode)
+                if not os.path.exists(self.processed_dir):
+                    os.makedirs(self.processed_dir)
+            else:
+                self.processed_dir = os.path.join(config.dataset.processed_dir, "EC_" + self.mode)
+                if not os.path.exists(self.processed_dir):
+                    os.makedirs(self.processed_dir)
+        
+        self.label_tsv = "/usr/commondata/local_public/protein-datasets/EnzymeCommission/nrPDB-EC_annot.tsv"
 
+        self.exlude_pdb_ids = [] # filter out pdb ids with low resolution or high sequence identity
+        self.load_predicted_structure()
+        # discard_nonstandard_pdb
+        for pdb_id in self.pdb_ids:
+            chain_id = pdb_id.split("-")[-1]
+            if len(chain_id) != 1:
+                self.exlude_pdb_ids.append(pdb_id)
+
+        # Filter out pdb ids and corresponding pdb paths at the same time
         if len(self.exlude_pdb_ids) > 0:
-            self.filter_pdb(self.exlude_pdb_ids)# filter out similar proteins in test set
-        self.dicard_nonstandard_pdb()
-
-        if self.feature_saved_mode:
+            self.filter_pdb(self.exlude_pdb_ids)
+        # pdb.set_trace()
+        if self.feature_save_mode:
             self.db_conn = None
-            self._load_structures(reset)
+            self._load_structure_features(reset)
             self._connect_db()
+        
+        self.load_annontation(self.label_tsv, self.pdb_ids)
 
-        pdb_ids = [os.path.basename(pdb_file).split("_")[0] for pdb_file in self.pdb_files]
-        self.pdb_ids = pdb_ids
-        self.load_annotation(self.tsv_file, pdb_ids)
-    
-    def load_data_entry(self):
-        if self.mode == "predict":
-            csv_file = os.path.join(self.path, "nrPDB-EC_test.csv")
-            with open(csv_file, "r") as fin:
-                reader = csv.reader(fin, delimiter=",")
-                idx = self.test_cutoffs.index(self.test_cutoff) + 1
-                _ = next(reader)
-                for line in reader:
-                    if line[idx] == "0": #Note: It's proteins that are not included
-                        self.exlude_pdb_ids.append(line[0])
-            path = os.path.join(self.path, "test")
-        elif self.mode == "train":
-            path = os.path.join(self.path, "train")
-        else: #TODO: add validation, currently use test as validation
-            csv_file = os.path.join(self.path, "nrPDB-EC_test.csv")
-            with open(csv_file, "r") as fin:
-                reader = csv.reader(fin, delimiter=",")
-                idx = self.test_cutoffs.index(self.test_cutoff) + 1
-                _ = next(reader)
-                for line in reader:
-                    if line[idx] == "0": #Note: It's proteins that are not included
-                        self.exlude_pdb_ids.append(line[0])
-            path = os.path.join(self.path, "test")
-        self.pdb_files = glob.glob(os.path.join(path, "*.pdb")) #pdb file list in train/valid/test set
+    def load_predicted_structure(self):
+        # Predicted-Experimental protein Structure pairing
+        if self.mode in ["train", "eval"]:
+            data_path = os.path.join(self.path, "nrPDB-EC_" + self.mode)
+        else:
+            data_path = os.path.join(self.path, "nrPDB-EC_test")
+        tm_score_tsv = os.path.join(data_path, "tmscore.tsv")
+        df = pd.read_csv(tm_score_tsv, sep="\t", header=0)
+        if self.tm_cutoff is not None:
+            df = df.query(f'tmscore > {self.tm_cutoff}') # find predicted structure with tmscore > cutoff
+
+        self.pdb_ids = df["pdb_chain"].tolist() # pdb_ids haven't been filtered by plddt and test_cutoff
+        uniprot_ids = df["uniprot"].tolist() # conresponding uniprot ids for finding the pdb path
+        pdb_path = os.path.join(data_path,"af2")
+        self.pdb_files = [os.path.join(pdb_path, uniprot_id + '.pdb') for uniprot_id in uniprot_ids]
+
         if self.debug:
+            self.pdb_ids = self.pdb_ids[:100]
             self.pdb_files = self.pdb_files[:100]
+
+        if self.plddt_cutoff is not None:
+            # read the reference plddt value for each pdb file
+            plddt_tsv = os.path.join(self.path, "af2_plddt.tsv")
+            df = pd.read_csv(plddt_tsv, sep="\t", header=0)
+            # convert the dataframe to a dictionary whose value is real number
+            plddt_dict = df.set_index('name').T.to_dict('list')
+            # for every value in plddt_dict, convert it to a float number
+            plddt_dict = {k: float(v[0]) for k, v in plddt_dict.items()}
+            # filter out pdb ids with low plddt value
+            self.exlude_pdb_ids = [pdb_id for id, pdb_id in enumerate(self.pdb_ids) if plddt_dict[uniprot_ids[id]] < self.plddt_cutoff]
+
+        if self.mode != "train":
+            csv_file = os.path.join(self.path, "nrPDB-EC_test.csv")
+            with open(csv_file, "r") as fin:
+                reader = csv.reader(fin, delimiter=",")
+                idx = self.test_cutoffs.index(self.test_cutoff) + 1
+                _ = next(reader)
+                for line in reader:
+                    if line[idx] == "0": #Note: It's proteins that are not included
+                        self.exlude_pdb_ids.append(line[0])
+    
+    def filter_pdb(self, exclude_pdb_ids):
+        # Filter out pdb ids and corresponding pdb paths at the same time
+        exclude_pdb_ids = set(exclude_pdb_ids)
+        pdb_files = []
+        pdb_ids = []
+        for pdb_id, pdb_file in zip(self.pdb_ids, self.pdb_files):
+            if pdb_id not in exclude_pdb_ids:
+                pdb_files.append(pdb_file)
+                pdb_ids.append(pdb_id)
+        self.pdb_files = pdb_files
+        self.pdb_ids = pdb_ids
+
     @property
     def _structure_cache_path(self):
         return os.path.join(self.processed_dir, 'structures.lmdb')
-    
-    def _load_structures(self, reset):
+
+    def _load_structure_features(self, reset):
         if not os.path.exists(self._structure_cache_path) or reset:
             if os.path.exists(self._structure_cache_path):
                 os.unlink(self._structure_cache_path)
             self._preprocess_structures()
-        
+    
     def _preprocess_structures(self):
         tasks = []
-        for entry in self.pdb_files:
-            if not os.path.exists(entry):
-                logging.warning("PDB file `%s` does not exist" % entry)
-                continue
+        for pdb_id, pdb_file in zip(self.pdb_ids, self.pdb_files):
             tasks.append(
                 {
-                    "pdb_path": entry,
+                    "pdb_id": pdb_id,
+                    "pdb_file": pdb_file,
                 }
             )
+
         data_list = joblib.Parallel(
             n_jobs=max(joblib.cpu_count()//2, 1),
         )(
-            joblib.delayed(self._process_protein)(task["pdb_path"])
+            joblib.delayed(self._process_protein)(task["pdb_file"], task["pdb_id"])
             for task in tqdm(tasks, dynamic_ncols=True ,desc="Preprocessing structures")
         )
 
@@ -156,27 +198,7 @@ class Data(Dataset):
         with open(self._structure_cache_path + '-ids', 'wb') as f:
             pickle.dump(ids, f)
 
-    def filter_pdb(self, exclude_pdb_ids):
-        exclude_pdb_ids = set(exclude_pdb_ids)
-        pdb_files = []
-        for pdb_file in self.pdb_files:
-            if os.path.basename(pdb_file).split("_")[0] in exclude_pdb_ids:
-                continue
-            pdb_files.append(pdb_file)
-
-        self.pdb_files = pdb_files
-    
-    def dicard_nonstandard_pdb(self):
-        pdb_files = []
-        for pdb_file in self.pdb_files:
-            pdb_id = os.path.basename(pdb_file).split("_")[0]
-            chain_id = pdb_id.split("-")[-1]
-            if len(chain_id) != 1:
-                continue
-            pdb_files.append(pdb_file)
-        self.pdb_files = pdb_files
-
-    def load_annotation(self, tsv_file, pdb_ids):
+    def load_annontation(self, tsv_file, pdb_ids):
         with open(tsv_file, "r") as fin:
             reader = csv.reader(fin, delimiter="\t")
             _ = next(reader)
@@ -194,7 +216,7 @@ class Data(Dataset):
         self.pos_targets = []
         for pdb_id in pdb_ids:
             self.pos_targets.append(pos_targets[pdb_id])
-
+    
     def __len__(self):
         return len(self.pdb_files)
     
@@ -233,14 +255,15 @@ class Data(Dataset):
             # self.feature_list[pname] = data
         return data
 
+
     def __getitem__(self, index):
-        # return 1
         if torch.is_tensor(index): index = index.tolist()
         # Get target name
         pname = self.pdb_ids[index]
         # Get decoy path
         pdb_file = self.pdb_files[index]
-        if self.feature_saved_mode:
+
+        if self.feature_save_mode:
             feats = self._get_structure(pname)
         else:
             feats = self._process_protein(pdb_file, pname)
@@ -251,19 +274,18 @@ class Data(Dataset):
         values = torch.ones(len(self.pos_targets[index]))
         # pdb.set_trace()
         feats["targets"] = utils.sparse_coo_tensor(indices, values, (len(self.tasks),)).to_dense()
-        # feature
+        
         
         return feats
-        
+
 if __name__ == '__main__':
     import argparse
-    import config
     from config._base import get_config
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_name", type=str, default="EC_IPAEncoder")
-    parser.add_argument("--mode", type=str, default="eval")
+    parser.add_argument("--config_name", type=str, default="GOMF_Graphformer")
+    parser.add_argument("--mode", type=str, default="train")
     parser.add_argument("--debug", type=bool, default=False)
-    parser.add_argument("--reset", type=bool, default=False)
+    parser.add_argument("--reset", type=bool, default=True)
     args = parser.parse_args()
     if args.reset:
         sure = input('Sure to reset? (y/n): ')
@@ -272,13 +294,10 @@ if __name__ == '__main__':
     config = get_config(args.config_name)()
     # pdb.set_trace()
     data_config = config.data
-    dataset = Data(data_config, args.mode, debug=args.debug, reset=args.reset)
+    dataset = ECPredData(data_config, args.mode, debug=args.debug, reset=args.reset)
     data = dataset[0]
-    # pdb.set_trace()
     # pdb.set_trace()
     # print(data["edge_type"].shape)
     # print(data["dist"].shape)
     print(data.keys())
     print(len(dataset))
-        
-        

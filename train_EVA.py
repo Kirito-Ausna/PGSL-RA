@@ -5,6 +5,7 @@ mpl_logger = logging.getLogger("matplotlib")
 mpl_logger.setLevel(logging.WARNING)
 import argparse
 import os
+os.environ['NUMEXPR_MAX_THREADS'] = str(os.cpu_count())
 # from pytorch_lightning.callbacks import StochasticWeightAveraging
 import pdb
 import random
@@ -130,7 +131,12 @@ def main(args):
         datamodule=data_module,
         ckpt_path=ckpt_path,
     )
-
+    if args.test:
+        trainer.test(
+            model_module, 
+            datamodule=data_module,
+            ckpt_path="best",
+        )
     trainer.save_checkpoint(
         os.path.join(args.output_dir, "checkpoints", "final.ckpt")
     )
@@ -162,6 +168,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--debug", type=bool_type, default=False
+    )
+    parser.add_argument(
+        "--test", type=bool_type, default=True
     )
     parser.add_argument(
         "--checkpoint_best_val", type=bool_type, default=True,

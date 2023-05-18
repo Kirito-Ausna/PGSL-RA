@@ -55,6 +55,12 @@ class GOPredData(Dataset):
         self.test_cutoff = test_cutoff
         self.tm_cutoff = config.dataset.tm_cutoff
         self.plddt_cutoff = config.dataset.plddt_cutoff
+        if self.mode == "tm_test":
+            self.tm_cutoff = config.dataset.test.tm_cutoff
+            self.plddt_cutoff = None
+        elif self.mode == "plddt_test":
+            self.plddt_cutoff = config.dataset.test.plddt_cutoff
+            self.tm_cutoff = None
 
         branch = config.dataset.branch
         if branch not in self.branches:
@@ -65,11 +71,16 @@ class GOPredData(Dataset):
             self.feature_save_mode = False
         else:
             self.feature_save_mode = True
-            self.processed_dir = os.path.join(config.dataset.processed_dir, "GO_tm_"+self.mode)#default Filter according to TMScore
-            if self.plddt_cutoff is not None:
-                self.processed_dir = os.path.join(config.dataset.processed_dir, "GO_plddt_"+self.mode)
-            if self.feature_save_mode and not os.path.exists(self.processed_dir):
-                os.makedirs(self.processed_dir)
+            if self.mode in ["train", "eval"]:
+                self.processed_dir = os.path.join(config.dataset.processed_dir, "GO_tm_"+self.mode)#default Filter according to TMScore
+                if self.plddt_cutoff is not None:
+                    self.processed_dir = os.path.join(config.dataset.processed_dir, "GO_plddt_"+self.mode)
+                if not os.path.exists(self.processed_dir):
+                    os.makedirs(self.processed_dir)
+            else:
+                self.processed_dir = os.path.join(config.dataset.processed_dir, "GO_" + self.mode)
+                if not os.path.exists(self.processed_dir):
+                    os.makedirs(self.processed_dir)
         
         # GO Term labels
         self.label_tsv = "/usr/commondata/local_public/protein-datasets/GeneOntology/nrPDB-GO_annot.tsv"
@@ -98,7 +109,10 @@ class GOPredData(Dataset):
 
     def load_predicted_structure(self):
         # Predicted-Experimental protein Structure pairing
-        data_path = os.path.join(self.path, "nrPDB-GO_" + self.mode)
+        if self.mode in ["train", "eval"]:
+            data_path = os.path.join(self.path, "nrPDB-GO_" + self.mode)
+        else:
+            data_path = os.path.join(self.path, "nrPDB-GO_test")
         tm_score_tsv = os.path.join(data_path, "tmscore.tsv")
         df = pd.read_csv(tm_score_tsv, sep="\t", header=0)
         if self.tm_cutoff is not None:

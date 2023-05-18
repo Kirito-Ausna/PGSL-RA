@@ -23,6 +23,9 @@ class IpaEncoder(nn.Module):
         self.encoder = Ipaformer(
             **self.config["ipaformer"]
         )
+        # self.ipaformer = Ipaformer(
+        #     **self.config["ipaformer"]
+        # )
     
     def forward(self, batch):
 
@@ -32,6 +35,12 @@ class IpaEncoder(nn.Module):
         # embed protein
         rigids = Rigid.from_tensor_4x4(batch["bb_rigid_tensors"])
         x, graph_attn_bias = self.protein_embedder(batch, pair_mask, get_bias=False)
+        # encoder_rep = self.ipaformer(
+        #     x,
+        #     graph_attn_bias,
+        #     rigids,
+        #     mask=seq_mask
+        # )
         encoder_rep = self.encoder(
             x,
             graph_attn_bias,

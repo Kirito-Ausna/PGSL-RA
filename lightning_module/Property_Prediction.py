@@ -33,23 +33,26 @@ class MultiBClassifyWrapper(pl.LightningModule):
         self.train_config = config.train
 
     def define_metrics(self):
+        modes = []
+        if self.config.data.dataset.training_mode:
+            modes.extend(["train", "val"])
+        if self.config.data.dataset.test:
+            modes.extend(["tm_test", "plddt_test"])
+        if self.config.data.dataset.test.ground_truth:
+            modes.append("ground_truth_test")
         for _metric in self.metrics:
             if _metric == "auroc_micro":
-                self.train_auroc_micro = metrics.classification_metric("area_under_roc")
-                self.val_auroc_micro = metrics.classification_metric("area_under_roc")
-                self.test_auroc_micro = metrics.classification_metric("area_under_roc")
+                for mode in modes:
+                    setattr(self, f"{mode}_auroc_micro", metrics.classification_metric("area_under_roc")) 
             elif _metric == "f1_max":
-                self.train_f1_max = metrics.classification_metric("f1_max")
-                self.val_f1_max = metrics.classification_metric("f1_max")
-                self.test_f1_max = metrics.classification_metric("f1_max")
+                for mode in modes:
+                    setattr(self, f"{mode}_f1_max", metrics.classification_metric("f1_max"))
             elif _metric == "auprc_micro":
-                self.train_auprc_micro = metrics.classification_metric("area_under_prc")
-                self.val_auprc_micro = metrics.classification_metric("area_under_prc")
-                self.test_auprc_micro = metrics.classification_metric("area_under_prc")
+                for mode in modes:
+                    setattr(self, f"{mode}_auprc_micro", metrics.classification_metric("area_under_prc"))
             elif _metric == "acc":
-                self.train_acc = metrics.classification_metric("accuracy")
-                self.val_acc = metrics.classification_metric("accuracy")
-                self.test_acc = metrics.classification_metric("accuracy")
+                for mode in modes:
+                    setattr(self, f"{mode}_acc", metrics.classification_metric("accuracy"))
             else:
                 raise ValueError("Unknown criterion `%s`" % _metric)
     
@@ -113,7 +116,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         self._log(loss, target, pred, train=False)
         # print("Validation step")
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, dataloader_idx):
         # Test step is the same as validation step
         # self.validation_step(batch, batch_idx)
         pred = self.forward(batch)
@@ -123,17 +126,18 @@ class MultiBClassifyWrapper(pl.LightningModule):
         loss = (loss * self.weight).sum() / self.weight.sum()
         # loss = losses.sigmoid_focal_loss(pred, target, reduction="mean")
         # pdb.set_trace()
-        self._log(loss, target, pred, train=False, test=True)
+        test_set = ["tm_test", "plddt_test", "ground_truth_test"]
+        self._log(loss, target, pred, train=False, test=True, test_set=test_set[dataloader_idx])
 
-    def _log(self, loss, target, pred, train=True, test=False):
+    def _log(self, loss, target, pred, train=True, test=False, test_set=None):
         # phase = "train" if train else "val"
         if train:
             phase="train"
         elif test:
-            phase="test"
+            phase=test_set
         else:
             phase="val"
-        self.log(f"{phase}/bce", loss, on_step=train or test, on_epoch=(not train), logger=True)
+        self.log(f"{phase}/bce", loss, on_step=train or test, on_epoch=(not train), logger=True, add_dataloader_idx=False)
         if(train):
             self.log(
                 f"{phase}/bce_epoch",
@@ -148,7 +152,11 @@ class MultiBClassifyWrapper(pl.LightningModule):
     def evaluate(self, pred, target, phase, test):
         for _metric in self.metrics:
             getattr(self, f"{phase}_{_metric}").update(pred, target)
-            self.log(f"{phase}/{_metric}", getattr(self, f"{phase}_{_metric}"), on_step=test, on_epoch=True, logger=True, prog_bar=True)
+            # if test:
+            self.log(f"{phase}/{_metric}", getattr(self, f"{phase}_{_metric}"), on_step=False, on_epoch=True, logger=True, prog_bar=True, add_dataloader_idx=False)
+            # else:
+            #     self.log(f"{phase}/{_metric}", getattr(self, f"{phase}_{_metric}"), on_step=False, on_epoch=True, logger=True, prog_bar=True)
+        
 
     def configure_optimizers(self, 
         learning_rate: float = 1e-3,

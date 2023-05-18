@@ -11,8 +11,6 @@ __pycache__
 *.tsv
 ./exp/analysis/*
 ./exp/data/*
-exp/data_process.ipynb
-exp/analysis/plot_motivation.py
-exp/analysis/error_analysis.ipynb
-exp/analysis/plot_motivation.py
 *.xlsx
+exp/analysis/*
+exp/data/data_process.ipynb
