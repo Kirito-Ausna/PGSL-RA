@@ -4,73 +4,27 @@ import torch
 # from models.denoise_module import DenoiseModule
 from lightning_module._base import register_task
 from models._base import get_model
-from task_framework.PGSL_RPA import PGSL_head
 from utils import residue_constants
-from utils.rigid_utils import Rigid
-from utils.loss import backbone_loss, lddt_ca
+from utils.loss import RefineDiffLoss, lddt_ca
 from utils.lr_scheduler import AlphaFoldLRScheduler
 from utils.superimposition import superimpose
 from utils.validation_metrics import drmsd, gdt_ha, gdt_ts
 
-@register_task("PGSL_RPA")
-class PGSL_RPA(pl.LightningModule):
+
+@register_task("RefineDiff")
+class RefineDiffWrapper(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.encoder = get_model(config.pretrain.encoder)(config)
-        self.PGSL_head = PGSL_head(config)
+        self.model = get_model(config.globals.model_class)(config)
+        self.loss = RefineDiffLoss(config.loss)
         self.last_lr_step = -1
         self.train_config = config.train
     
     def forward(self, batch):
-        s, z =  self.encoder(batch)
-        outputs = self.PGSL_head(batch, s, z)
+        return self.model(batch)
 
-        return outputs
-    
-    def training_step(self, batch, batch_idx):
-
-        # Run the model
-        outputs = self(batch)
-
-        # Compute loss
-        loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
-            label_backbone_rigid_mask=batch["decoy_seq_mask"],
-            traj=outputs["sm"]["frames"],
-            **self.config.fape.loss,
-            )
-
-        # Log it
-        self._log(loss, batch, outputs, train=True)
-
-        return loss
-    
-    def validation_step(self, batch, batch_idx):
-        # Run the model
-        outputs = self(batch)
-        
-        loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
-            label_backbone_rigid_mask=batch["decoy_seq_mask"],
-            traj=outputs["sm"]["frames"],
-            **self.config.fape.loss,
-            )
-
-        self._log(loss, batch, outputs, train=False)
-
-    def test_step(self, batch, batch_idx):
-        # Test the model
-        outputs = self(batch)
-        loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
-            label_backbone_rigid_mask=batch["decoy_seq_mask"],
-            traj=outputs["sm"]["frames"],
-            **self.config.fape.loss,
-            )
-        self._log(loss, batch, outputs, train=False, test=True)
-
-    def _log(self, loss, batch, outputs, train=True, test=False):
+    def _log(self, loss_breakdown, batch, outputs, train=True, test=False):
         if train:
             phase="train"
         elif test:
@@ -78,19 +32,19 @@ class PGSL_RPA(pl.LightningModule):
         else:
             phase="val"
 
-        
-        self.log(
-            f"{phase}/bb_loss", 
-            loss, 
-            on_step=train, on_epoch=(not train), logger=True,
-        )
-
-        if(train):
+        for loss_name, indiv_loss in loss_breakdown.items():
             self.log(
-                f"{phase}/bb_loss_epoch",
-                loss,
-                on_step=False, on_epoch=True, logger=True,
+                f"{phase}/{loss_name}", 
+                indiv_loss, 
+                on_step=train, on_epoch=(not train), logger=True,
             )
+
+            if(train):
+                self.log(
+                    f"{phase}/{loss_name}_epoch",
+                    indiv_loss,
+                    on_step=False, on_epoch=True, logger=True,
+                )
 
         with torch.no_grad():
             other_metrics = self._compute_validation_metrics(
@@ -105,6 +59,40 @@ class PGSL_RPA(pl.LightningModule):
                 v, 
                 on_step=test, on_epoch=True, logger=True
             )
+    
+    def training_step(self, batch, batch_idx):
+
+        # Run the model
+        outputs = self(batch)
+
+        # Compute loss
+        loss, loss_breakdown = self.loss(
+            outputs, batch, _return_breakdown=True
+        )
+
+        # Log it
+        self._log(loss_breakdown, batch, outputs)
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        # Run the model
+        outputs = self(batch)
+        _, loss_breakdown = self.loss(
+            outputs, batch, _return_breakdown=True
+        )
+
+        self._log(loss_breakdown, batch, outputs, train=False)
+
+    def test_step(self, batch, batch_idx):
+        # Test the model
+        outputs = self(batch)
+        _, loss_breakdown = self.loss(
+            outputs, batch, _return_breakdown=True
+        )
+
+        self._log(loss_breakdown, batch, outputs, train=False, test=True)
+
 
     def _compute_validation_metrics(self, 
         batch, 
@@ -112,35 +100,37 @@ class PGSL_RPA(pl.LightningModule):
         superimposition_metrics=False
     ):
         metrics = {}
-        pred_aff = Rigid.from_tensor_7(outputs["final_affine_tensor"])
-        gt_aff = Rigid.from_tensor_4x4(batch["label_bb_rigid_tensor"])
+        
+        gt_coords = batch["label_all_atom_positions"]
+        pred_coords = outputs["final_atom_positions"]
+        all_atom_mask = batch["label_all_atom_mask"]
+        # Starting Model
+        decoy_coords = batch["decoy_all_atom_positions"]
 
-        gt_coords_ca = gt_aff.get_trans()
-        gt_coords_masked_ca = gt_coords_ca * batch["decoy_seq_mask"][..., None]
-        pred_coords_ca = pred_aff.get_trans()
-        pred_coords_masked_ca = pred_coords_ca * batch["decoy_seq_mask"][..., None]
     
         # This is super janky for superimposition. Fix later
-        decoy_coords = batch["decoy_all_atom_positions"]
-        all_atom_mask = batch["decoy_all_atom_mask"]
+        gt_coords_masked = gt_coords * all_atom_mask[..., None]
+        pred_coords_masked = pred_coords * all_atom_mask[..., None]
         ca_pos = residue_constants.atom_order["CA"]
+        gt_coords_masked_ca = gt_coords_masked[..., ca_pos, :]
+        pred_coords_masked_ca = pred_coords_masked[..., ca_pos, :]
+        all_atom_mask_ca = all_atom_mask[..., ca_pos]
         # Starting Model
         decoy_coords_masked = decoy_coords * all_atom_mask[..., None]
         decoy_coords_masked_ca = decoy_coords_masked[..., ca_pos, :]
-        all_atom_mask_ca = all_atom_mask[..., ca_pos]
     
         lddt_ca_score = lddt_ca(
-            pred_coords_ca,
-            gt_coords_ca,
-            all_atom_mask_ca[None],
+            pred_coords,
+            gt_coords,
+            all_atom_mask,
             eps=self.config.globals.eps,
             per_residue=False,
         )
 
         starting_lddt = lddt_ca(
-            decoy_coords_masked_ca,
-            gt_coords_ca,
-            all_atom_mask_ca[None],
+            decoy_coords,
+            gt_coords,
+            all_atom_mask,
             eps=self.config.globals.eps,
             per_residue=False,
         )

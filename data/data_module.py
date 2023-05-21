@@ -21,6 +21,22 @@ class BatchCollator:
         self.stage = stage
 
     def __call__(self, raw_prots) -> FeatureDict:
+        if 'predicted' in raw_prots[0].keys(): # contrastive learning
+            # split the raw_prots into two parts
+            prediced_prots = []
+            exp_prots = []
+            for pair in raw_prots:
+                label = pair['targets']
+                prediced_prot = pair['predicted']
+                exp_prot = pair['experimental']
+                prediced_prot['targets'] = label
+                exp_prot['targets'] = label
+                prediced_prots.append(prediced_prot)
+                exp_prots.append(exp_prot)
+                
+            # concatenate the two parts in raw_prots batch_size = 2*batch_size
+            raw_prots = prediced_prots + exp_prots
+                
         processed_prots = []
         # get the max sequence length in a batch
         max_seq_len = max([prot["decoy_seq_mask"].shape[0] for prot in raw_prots])
@@ -57,7 +73,7 @@ class UnifiedDataModule(pl.LightningDataModule):
         if self.config.dataset.test:
             test_modes = ["tm_test", "plddt_test"]
             if self.config.dataset.test.ground_truth:
-                test_modes.append("ground_truth_test")
+                test_modes.append("test")
             self.test_datasets = [dataset_gen(mode = mode) for mode in test_modes]
     
     def _gen_batch_collator(self, stage):

@@ -9,8 +9,9 @@ __pycache__
 /EVA_result/
 /config/*
 *.tsv
-./exp/analysis/*
-./exp/data/*
+exp/analysis/*
+exp/data/*
 *.xlsx
 exp/analysis/*
 exp/data/data_process.ipynb
+exp/data/parsing_label.py

@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default="mbclassify")
     parser.add_argument("--config_name", type=str, default="Anontation_Test")
     parser.add_argument(
-        "--output_dir", type=str, default="/root/Generative-Models/PGSL-RA/test_result/UniMol/Vanilla/PredStruct/EC/",
+        "--output_dir", type=str, default="/root/Generative-Models/PGSL-RA/test_result/IPAEncoder/Vanilla/PredStruct/EC/",
         help='''Directory in which to output checkpoints, logs, etc. Ignored
                 if not on rank 0'''
     )
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         "--debug", type=bool_type, default=False
     )
     parser.add_argument(
-        "--resume_from_ckpt", type=str, default="/root/Generative-Models/PGSL-RA/EVA_result/mbclassify/EC/EC_UniMol/EC_UniMol_re0/checkpoints/RefineDiff-epoch72-f1_max=0.656.ckpt",
+        "--resume_from_ckpt", type=str, default="/root/Generative-Models/PGSL-RA/EVA_result/mbclassify/EC/EC_IPAEncoder/EC_IPAEncoder_re0/checkpoints/RefineDiff-epoch66-f1_max=0.710.ckpt",
         help="Path to a model checkpoint from which to restore training state"
     )
     #Logger
@@ -109,10 +109,10 @@ if __name__ == "__main__":
         "--wandb", action="store_true", default=False,
     )
     parser.add_argument(
-        "--experiment_name", type=str, default="UniMol-Vanilla-PredStrcut-EC",
+        "--experiment_name", type=str, default="IPAEncoder-Vanilla-PredStrcut-EC",
     )
     parser.add_argument(
-        "--wandb_id", type=str, default="UniMol-Vanilla-PredStruct-EC",
+        "--wandb_id", type=str, default="IPAEncoder-Vanilla-PredStruct-EC",
     )
     parser.add_argument(
         "--wandb_group", type=str, default="PredStruct",

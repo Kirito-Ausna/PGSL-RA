@@ -27,7 +27,7 @@ class IpaEncoder(nn.Module):
         #     **self.config["ipaformer"]
         # )
     
-    def forward(self, batch):
+    def forward(self, batch, pretrain=False):
 
         seq_mask = batch["decoy_seq_mask"]
         pair_mask = seq_mask[..., None] * seq_mask[..., None, :]
@@ -47,4 +47,6 @@ class IpaEncoder(nn.Module):
             rigids,
             mask=seq_mask
         )
+        if pretrain:
+            return encoder_rep, graph_attn_bias
         return encoder_rep

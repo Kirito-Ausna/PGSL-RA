@@ -31,7 +31,7 @@ class REINet(nn.Module):
     #     return atom37_to_rigids(batch["decoy_aatype"], 
     #                             batch["decoy_all_atom_positions"], batch["decoy_all_atom_mask"])
 
-    def forward(self, batch):
+    def forward(self, batch, pretrain=False):
 
         seq_mask = batch["decoy_seq_mask"]
         pair_mask = seq_mask[..., None] * seq_mask[..., None, :]
@@ -61,5 +61,7 @@ class REINet(nn.Module):
         #     rigids,
         #     mask=seq_mask
         # )
+        if pretrain:
+            return encoder_rep, encoder_pair_rep
         return encoder_rep
         

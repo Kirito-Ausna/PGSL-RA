@@ -48,36 +48,21 @@ config = mlc.ConfigDict(
             "reweight": False,
         },
         "data":{
-            # "dataset": {
-            #     "name": "GO",
-            #     "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-            #     "branch": "MF",
-            #     "test_cutoff": 0.95,
-            #     "training_mode": True,
-            #     "eval": True,
-            #     "feature_pipeline": "Graphformer",
-            #     "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
-            #     "esm_save_dir": None,
-            # },
-            "dataset": {
-                #"name": "GO"
-                "name": "GO_Pred",
-                # "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
-                "branch": "MF",
-                "test_cutoff": 0.95,
+            "dataset":{
+                "name": "Paired",
                 "training_mode": True,
                 "eval": True,
                 "test": True,
-                "feature_pipeline": "Graphformer",
-                # "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/processed/predicted_structure/",
-                "tm_cutoff": None,
-                "plddt_cutoff": 70,
+                "task": "GO", # when task is GO, branch is required
+                "branch": "MF",
+                "paired": True, # allow only one protein within each pair
+                "pred": False, # use predicted structure
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "framework": "PGSL",
                 "test":{
                     "plddt_cutoff": 70,
                     "tm_cutoff": 0.5,
-                    "ground_truth": False,
+                    "ground_truth": True,
                 }
             },
             "common":{
@@ -88,7 +73,8 @@ config = mlc.ConfigDict(
                     "decoy_angle_feats": [NUM_RES, None], 
                     "targets": [None], #:= 538
                     "bb_rigid_tensors": [NUM_RES, None, None],
-                    # build in dataloader
+                    "label_bb_rigid_tensor": [NUM_RES, None, None],
+                    # fullfill in dataloader
                     "decoy_seq_mask": [NUM_RES],
                     # Build in gaussian encoder
                     "dist": [NUM_RES, NUM_RES, None],
