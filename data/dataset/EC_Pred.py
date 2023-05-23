@@ -116,6 +116,7 @@ class ECPredData(Dataset):
         uniprot_ids = df["uniprot"].tolist() # conresponding uniprot ids for finding the pdb path
         pdb_path = os.path.join(data_path,"af2")
         self.pdb_files = [os.path.join(pdb_path, uniprot_id + '.pdb') for uniprot_id in uniprot_ids]
+        # self.pdb_files = [os.path.join(pdb_path, pdb_id + '.pdb') for pdb_id in self.pdb_ids]
 
         if self.debug:
             self.pdb_ids = self.pdb_ids[:100]
@@ -141,6 +142,14 @@ class ECPredData(Dataset):
                 for line in reader:
                     if line[idx] == "0": #Note: It's proteins that are not included
                         self.exlude_pdb_ids.append(line[0])
+        error_list_path = os.path.join(data_path, "error.txt")
+        # read a list from the error.txt file
+        with open(error_list_path, "r") as fin:
+            error_list = fin.readlines()
+        # strip the '\n' in the end of each line
+        error_list = [x.strip().upper() for x in error_list]
+        # filter out pdb ids with error
+        self.exlude_pdb_ids.extend(error_list)
     
     def filter_pdb(self, exclude_pdb_ids):
         # Filter out pdb ids and corresponding pdb paths at the same time
@@ -148,7 +157,7 @@ class ECPredData(Dataset):
         pdb_files = []
         pdb_ids = []
         for pdb_id, pdb_file in zip(self.pdb_ids, self.pdb_files):
-            if pdb_id not in exclude_pdb_ids:
+            if pdb_id not in exclude_pdb_ids and pdb_id.split("-")[0] not in exclude_pdb_ids:
                 pdb_files.append(pdb_file)
                 pdb_ids.append(pdb_id)
         self.pdb_files = pdb_files
@@ -282,10 +291,10 @@ if __name__ == '__main__':
     import argparse
     from config._base import get_config
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_name", type=str, default="GOMF_Graphformer")
-    parser.add_argument("--mode", type=str, default="train")
+    parser.add_argument("--config_name", type=str, default="Anontation_Test")
+    parser.add_argument("--mode", type=str, default="eval")
     parser.add_argument("--debug", type=bool, default=False)
-    parser.add_argument("--reset", type=bool, default=True)
+    parser.add_argument("--reset", type=bool, default=False)
     args = parser.parse_args()
     if args.reset:
         sure = input('Sure to reset? (y/n): ')
@@ -299,5 +308,7 @@ if __name__ == '__main__':
     # pdb.set_trace()
     # print(data["edge_type"].shape)
     # print(data["dist"].shape)
+    print("pdb_id: ", data["pdb_id"])
+    print("length: ", len(data["decoy_seq_mask"]))
     print(data.keys())
     print(len(dataset))

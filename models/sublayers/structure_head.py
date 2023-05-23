@@ -56,7 +56,7 @@ class StructureHead(nn.Module):
             self.no_qk_points,
             self.no_v_points,
             inf=self.inf,
-            epsilon=self.epsilon,
+            eps=self.epsilon,
         )
         self.layer_norm_ipa = LayerNorm(self.c_s)
         self.layer_norm_trans = LayerNorm(self.c_s)
@@ -66,6 +66,7 @@ class StructureHead(nn.Module):
                                         self.dropout_rate
                                     )
         self.backbone_update = BackboneUpdate(self.c_s)
+        self.ipa_dropout = nn.Dropout(self.dropout_rate)
     
     def forward(
             self,
@@ -99,6 +100,7 @@ class StructureHead(nn.Module):
 
         # [*, N, C_s]
         s = self.linear_in(s)
+        
         outputs = []
         rigids = rigids.scale_translation(1/self.trans_scale_factor)
         for i in range(self.no_blocks):
@@ -109,11 +111,11 @@ class StructureHead(nn.Module):
             s = self.ipa_dropout(s)
             s = self.layer_norm_trans(s)
 
-            rigids = rigids.compose(self.backbone_update(s))
+            rigids = rigids.compose_q_update_vec(self.backbone_update(s))
             scaled_rigids = rigids.scale_translation(self.trans_scale_factor)
 
             preds = {
-                "frame": scaled_rigids.to_tensor_7()
+                "frames": scaled_rigids.to_tensor_7()
             }
             outputs.append(preds)
 

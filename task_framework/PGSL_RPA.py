@@ -53,7 +53,7 @@ class PGSL_head(nn.Module):
             seq_mask,
         )
 
-        outputs["final_affine_tensor"] = outputs["sm"]["frames"][-1]
+        outputs["final_affine_tensors"] = outputs["sm"]["frames"][-1]
 
         return outputs
         

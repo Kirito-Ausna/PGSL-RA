@@ -55,26 +55,29 @@ class PairedDataset(Dataset):
             # should load labels and help find the lmdb files
             self.branch = config.dataset.branch
             self.branches = ["MF", "BP", "CC"]
-        
+        processed_path = os.path.join(self.root_dir, "align_processed")
         if mode == "test":
-            self.exp_lmdb_path = os.path.join(self.root_dir, "exp_struct", f"{self.task}_{self.mode}")
+            self.exp_lmdb_path = os.path.join(processed_path,"exp_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.exp_lmdb_path, "structures.lmdb-ids")
         elif mode in ["tm_test", "plddt_test"]:
-            self.pred_lmdb_path = os.path.join(self.root_dir, "pred_struct", f"{self.task}_{self.mode}")
+            self.pred_lmdb_path = os.path.join(processed_path,"pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
-        elif self.paired and mode == "train":
-            self.exp_lmdb_path = os.path.join(self.root_dir, "exp_struct", f"{self.task}_{self.mode}")
-            self.pred_lmdb_path = os.path.join(self.root_dir, "pred_struct", f"{self.task}_{self.mode}")
+        elif self.paired and mode == "train" or (self.paired and mode == "eval" and self.framework == "PGSL"):
+            self.exp_lmdb_path = os.path.join(processed_path,"exp_struct", f"{self.task}_{self.mode}")
+            self.pred_lmdb_path = os.path.join(processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
         elif self.pred:
-            self.pred_lmdb_path = os.path.join(self.root_dir, "pred_struct", f"{self.task}_{self.mode}")
+            self.pred_lmdb_path = os.path.join(processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
         else:
-            self.exp_lmdb_path = os.path.join(self.root_dir, "exp_struct", f"{self.task}_{self.mode}")
+            self.exp_lmdb_path = os.path.join(processed_path, "exp_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.exp_lmdb_path, "structures.lmdb-ids")
     
         with open(index_file, "rb") as fin:
             self.pdb_ids = pickle.load(fin)
+        
+        if self.debug:
+            self.pdb_ids = self.pdb_ids[:100]
         
         self._connect_db()
         if self.framework != "PGSL":
@@ -168,7 +171,7 @@ class PairedDataset(Dataset):
             # feats = {**exp_data, **pred_data}
             if self.framework == "PGSL":
                 feats = pred_data
-                feats['label_bb_rigid_tensor'] = exp_data["bb_rigid_tensor"]
+                feats['label_bb_rigid_tensors'] = exp_data["bb_rigid_tensors"]
             elif self.framework == "Noisy_Training":
                 # randomly choose one structure as the input
                 if np.random.rand() > 0.5:

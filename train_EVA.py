@@ -170,7 +170,7 @@ if __name__ == "__main__":
         "--debug", type=bool_type, default=False
     )
     parser.add_argument(
-        "--test", type=bool_type, default=True
+        "--test", type=bool_type, default=False
     )
     parser.add_argument(
         "--checkpoint_best_val", type=bool_type, default=True,
@@ -213,29 +213,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--wandb_entity", type=str, default=None,
     )
-    # Datset config arguments, #TODO: Make the dataset config interface more unified
-    # parser.add_argument(
-    #     "--train_targets_path", type=str, default="/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/train_proteins.npy",
-    #     help="the path to the list of training protein names"
-    # )
-    # parser.add_argument(
-    #     "--val_targets_path", type=str, default="/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/valid_proteins.npy",
-    #     help="the path to the list of validating protein names"
-    # )
-    # parser.add_argument(
-    #     "--predict_targets_path", type=str, default=None,
-    #     help="the path to the list of predicting protein names"
-    # )
-    # parser.add_argument(
-    #     "--root_dir", type=str, default="/root/HibikeFold/RefineDiff-FullAtom/DecoyDataset/pdbs",
-    #     help="the path to the list of data directory"
-    # )
-    # parser.add_argument(
-    #     "--include_native", type=bool_type, default=False,
-    #     help="whether to include native structure"
-    # )
-
-
+    
     parser = pl.Trainer.add_argparse_args(parser)
 
     #Disable the initial validation pass

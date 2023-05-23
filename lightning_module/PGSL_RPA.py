@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 import torch
-
+import pdb
 # from models.denoise_module import DenoiseModule
 from lightning_module._base import register_task
 from models._base import get_model
@@ -23,7 +23,7 @@ class PGSL_RPA(pl.LightningModule):
         self.train_config = config.train
     
     def forward(self, batch):
-        s, z =  self.encoder(batch)
+        s, z =  self.encoder(batch, pretrain=True)
         outputs = self.PGSL_head(batch, s, z)
 
         return outputs
@@ -35,10 +35,10 @@ class PGSL_RPA(pl.LightningModule):
 
         # Compute loss
         loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
+            label_backbone_rigid_tensor=batch["label_bb_rigid_tensors"],
             label_backbone_rigid_mask=batch["decoy_seq_mask"],
             traj=outputs["sm"]["frames"],
-            **self.config.fape.loss,
+            **self.config.loss.fape,
             )
 
         # Log it
@@ -51,10 +51,10 @@ class PGSL_RPA(pl.LightningModule):
         outputs = self(batch)
         
         loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
+            label_backbone_rigid_tensor=batch["label_bb_rigid_tensors"],
             label_backbone_rigid_mask=batch["decoy_seq_mask"],
             traj=outputs["sm"]["frames"],
-            **self.config.fape.loss,
+            **self.config.loss.fape,
             )
 
         self._log(loss, batch, outputs, train=False)
@@ -63,7 +63,7 @@ class PGSL_RPA(pl.LightningModule):
         # Test the model
         outputs = self(batch)
         loss = backbone_loss(
-            label_backbone_rigid_tensor=batch["label_bb_rigid_tensor"],
+            label_backbone_rigid_tensor=batch["label_bb_rigid_tensors"],
             label_backbone_rigid_mask=batch["decoy_seq_mask"],
             traj=outputs["sm"]["frames"],
             **self.config.fape.loss,
@@ -91,7 +91,7 @@ class PGSL_RPA(pl.LightningModule):
                 loss,
                 on_step=False, on_epoch=True, logger=True,
             )
-
+        # pdb.set_trace()
         with torch.no_grad():
             other_metrics = self._compute_validation_metrics(
                 batch, 
@@ -103,7 +103,7 @@ class PGSL_RPA(pl.LightningModule):
             self.log(
                 f"{phase}/{k}", 
                 v, 
-                on_step=test, on_epoch=True, logger=True
+                on_step=test, on_epoch=True, logger=True,
             )
 
     def _compute_validation_metrics(self, 
@@ -112,8 +112,8 @@ class PGSL_RPA(pl.LightningModule):
         superimposition_metrics=False
     ):
         metrics = {}
-        pred_aff = Rigid.from_tensor_7(outputs["final_affine_tensor"])
-        gt_aff = Rigid.from_tensor_4x4(batch["label_bb_rigid_tensor"])
+        pred_aff = Rigid.from_tensor_7(outputs["final_affine_tensors"])
+        gt_aff = Rigid.from_tensor_4x4(batch["label_bb_rigid_tensors"])
 
         gt_coords_ca = gt_aff.get_trans()
         gt_coords_masked_ca = gt_coords_ca * batch["decoy_seq_mask"][..., None]
@@ -132,7 +132,7 @@ class PGSL_RPA(pl.LightningModule):
         lddt_ca_score = lddt_ca(
             pred_coords_ca,
             gt_coords_ca,
-            all_atom_mask_ca[None],
+            all_atom_mask_ca[...,None],
             eps=self.config.globals.eps,
             per_residue=False,
         )
@@ -140,7 +140,7 @@ class PGSL_RPA(pl.LightningModule):
         starting_lddt = lddt_ca(
             decoy_coords_masked_ca,
             gt_coords_ca,
-            all_atom_mask_ca[None],
+            all_atom_mask_ca[...,None],
             eps=self.config.globals.eps,
             per_residue=False,
         )
@@ -200,7 +200,7 @@ class PGSL_RPA(pl.LightningModule):
         ) -> torch.optim.Adam:
 
         optimizer = torch.optim.AdamW(
-            self.model.parameters(), 
+            self.parameters(), 
             lr=learning_rate, 
             eps=eps
         )
