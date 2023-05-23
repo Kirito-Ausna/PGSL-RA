@@ -38,12 +38,12 @@ config = mlc.ConfigDict(
         "data":{
             "dataset": {
                 "name": "EC",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/",
+                "root_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/EnzymeCommission/",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/processed/",
+                "processed_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/EnzymeCommission/processed/",
                 "esm_save_dir": None,
             },
             "common":{

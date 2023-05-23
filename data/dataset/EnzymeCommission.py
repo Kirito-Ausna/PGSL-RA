@@ -25,7 +25,7 @@ import pickle
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 
-# @register_dataset("EC")
+@register_dataset("EC")
 class Data(Dataset):
     # url = "https://zenodo.org/record/6622158/files/EnzymeCommission.zip"
     # md5 = "33f799065f8ad75f87b709a87293bc65"

@@ -38,13 +38,13 @@ config = mlc.ConfigDict(
         "data":{
             "dataset": {
                 "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
+                "root_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/",
                 "branch": "BP",
                 "test_cutoff": 0.95,
                 "training_mode": True,
                 "eval": True,
                 "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+                "processed_dir": "/huangyufei/Dataset/RefineDiff_Downstream/protein-datasets/GeneOntology/processed/",
                 "esm_save_dir": None,
             },
             "common":{
@@ -107,7 +107,7 @@ config = mlc.ConfigDict(
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
                 "num_mlp_layers": 3,
             },
-            "metric": ['f1_max'],
+            "metric": ['f1_max', 'auprc_micro'],
             "encoder_fixed": False,
             "reweight": False,
         },
@@ -122,30 +122,21 @@ config = mlc.ConfigDict(
                     "kernel_num": 16,
                     "num_pair_distance": 25
                 },
-                "non_linear_head": {
+                "bias_proj_layer": {
                     "input_dim": pair_embed_dim,# 25*16 = 400
                     "out_dim": num_attention_heads,
                     "activation_fn": activation_fn,
                     "hidden": 2*num_attention_heads,
+                },
+                "centrality_proj_layer":{
+                    "input_dim": pair_embed_dim,
+                    "out_dim": encoder_embed_dim,
+                    "activation_fn": activation_fn,
+                    "hidden": 2*encoder_embed_dim,
                 }   
             },
-            "graphformer": {
-                "encoder_layers": 1, # original 15
-                "embed_dim": encoder_embed_dim,
-                "ffn_embed_dim": encoder_ffn_embed_dim,
-                "attention_heads": num_attention_heads,
-                "emb_dropout": 0.1,
-                "dropout": 0.1,
-                "attention_dropout": 0.1,
-                "activation_dropout": 0.1,
-                "max_seq_len": max_seq_len,
-                "activation_fn": activation_fn,
-                # "pooler_activation_fn": "tanh",
-                "post_ln": False,
-                "no_final_head_layer_norm": True,
-            },
             "ipaformer": {
-                "no_blocks": 5,
+                "no_blocks": 6,
                 "c_s": encoder_embed_dim,
                 "c_z": num_attention_heads,
                 "c_ipa": 16,
