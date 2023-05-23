@@ -109,12 +109,14 @@ def lddt_ca(
     cutoff: float = 15.0,
     eps: float = 1e-10,
     per_residue: bool = True,
+    ca_only: bool = True,
 ) -> torch.Tensor:
-    ca_pos = residue_constants.atom_order["CA"]
-    all_atom_pred_pos = all_atom_pred_pos[..., ca_pos, :]
-    all_atom_positions = all_atom_positions[..., ca_pos, :]
-    all_atom_mask = all_atom_mask[..., ca_pos : (ca_pos + 1)]  # keep dim
-
+    if not ca_only:
+        ca_pos = residue_constants.atom_order["CA"]
+        all_atom_pred_pos = all_atom_pred_pos[..., ca_pos, :]
+        all_atom_positions = all_atom_positions[..., ca_pos, :]
+        all_atom_mask = all_atom_mask[..., ca_pos : (ca_pos + 1)]  # keep dim
+    # pdb.set_trace()
     lddt_score =  lddt(
         all_atom_pred_pos,
         all_atom_positions,

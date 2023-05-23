@@ -7,4 +7,11 @@ __pycache__
 *.sh
 /test/*
 /EVA_result/
-/config/
+/config/*
+*.tsv
+exp/analysis/*
+exp/data/*
+*.xlsx
+exp/analysis/*
+exp/data/data_process.ipynb
+exp/data/parsing_label.py

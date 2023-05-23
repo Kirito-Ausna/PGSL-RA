@@ -23,7 +23,7 @@ class UniMol(nn.Module):
         self.uni_encoder = TransformerEncoderWithPair(
             **self.config["graphformer"]
         )
-    def forward(self, batch):
+    def forward(self, batch, pretrain=False):
         seq_mask = batch["decoy_seq_mask"]
         pair_mask = seq_mask[..., None] * seq_mask[..., None, :]
         padding_mask = 1 - seq_mask
@@ -39,4 +39,6 @@ class UniMol(nn.Module):
         encoder_pair_rep[encoder_pair_rep == float("-inf")] = 0
         # rigids = self.decoy2rigid(batch)
         # rigids = Rigid.from_tensor_4x4(batch["bb_rigid_tensors"])
+        if pretrain:
+            return encoder_rep, encoder_pair_rep
         return encoder_rep

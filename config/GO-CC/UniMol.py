@@ -100,7 +100,7 @@ config = mlc.ConfigDict(
             },
         },
         "downstream":{
-            "encoder": "REI_net",
+            "encoder": "uni-mol",
             "encoder_checkpoint": None,
             "head": {
                 "model_out_dim": encoder_embed_dim,
@@ -157,10 +157,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 4300,
-            "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 430
+            "warmup_no_steps": 1290,
+            "start_decay_after_n_steps": 12900,
+            "decay_every_n_steps": 360
         }
-
     }
 )

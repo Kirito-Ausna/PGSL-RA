@@ -98,6 +98,9 @@ class GaussianEncoder(nn.Module):
         self.gbf_proj = NonLinearHead(
             **self.embedder_config["bias_proj_layer"]
         )
+        # self.gbf_proj = NonLinearHead(
+        #     **self.embedder_config["non_linear_head"]
+        # )
         self.centrality_proj = NonLinearHead(
             **self.embedder_config["centrality_proj_layer"]
         )
@@ -120,6 +123,7 @@ class GaussianEncoder(nn.Module):
             graph_attn_bias = graph_attn_bias.permute(0, 3, 1, 2).contiguous() # [B, num_head, N, N]
             graph_attn_bias = graph_attn_bias.view(-1, n_node, n_node) # [B*num_head, N, N]
         return graph_attn_bias, centrality_encoding
+        # return graph_attn_bias
     
     def forward(self, batch, pair_mask=None, get_bias=True):
         """
@@ -134,6 +138,7 @@ class GaussianEncoder(nn.Module):
         dist, et = build_unimol_pair_feats(batch, ca_only=False, pair_mask=pair_mask)
         # dist, et = batch["dist"], batch["edge_type"]
         graph_attn_bias, centrality_encoding = self.get_encoding_features(dist, et, pair_mask=pair_mask, get_bias=get_bias)
+        # graph_attn_bias = self.get_encoding_features(dist, et, pair_mask=pair_mask, get_bias=get_bias)
         x = x + centrality_encoding
 
         return x, graph_attn_bias

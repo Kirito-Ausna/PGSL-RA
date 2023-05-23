@@ -426,10 +426,12 @@ class Ipaformer(nn.Module):
                     self.dropout_rate,
                 )
             )
-            # self.bb_updates.append(BackboneUpdate(self.c_s))
+        # for _ in range(self.no_blocks - 1):
+        #     self.bb_updates.append(BackboneUpdate(self.c_s))
 
         self.ipa_dropout = nn.Dropout(self.dropout_rate)
 
+        # self.bb_update = BackboneUpdate(self.c_s)
         # self.ipa = InvariantPointAttention(
         #         self.c_s,
         #         self.c_z,
@@ -448,7 +450,6 @@ class Ipaformer(nn.Module):
         #     self.dropout_rate,
         # )
 
-        # self.bb_update = BackboneUpdate(self.c_s)
 
     def forward(
         self,
@@ -504,9 +505,10 @@ class Ipaformer(nn.Module):
 
 
             # [*, N]
-            # rigids = rigids.compose_q_update_vec(self.bb_updates[i](s))
+            # if i < (self.no_blocks - 1):
+            #     rigids = rigids.compose_q_update_vec(self.bb_updates[i](s))
 
-            if i < (self.no_blocks - 1):
-                rigids = rigids.stop_rot_gradient()
+            # if i < (self.no_blocks - 2):
+            #     rigids = rigids.stop_rot_gradient()
 
         return s

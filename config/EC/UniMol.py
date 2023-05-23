@@ -138,20 +138,21 @@ config = mlc.ConfigDict(
                     "hidden": 2*encoder_embed_dim,
                 }   
             },
-            "ipaformer": {
-                "no_blocks": 6,
-                "c_s": encoder_embed_dim,
-                "c_z": num_attention_heads,
-                "c_ipa": 16,
-                "no_heads_ipa": 12,
-                "no_qk_points": 4,
-                "no_v_points": 8,
-                "dropout_rate": 0.1,
-                "no_transition_layers": 1,
-                "trans_scale_factor": 10,
-                "epsilon": eps,  # 1e-12,
-                "inf": 1e5,
-            }
+            "graphformer": {
+                "encoder_layers": 6, # original 15
+                "embed_dim": encoder_embed_dim,
+                "ffn_embed_dim": encoder_ffn_embed_dim,
+                "attention_heads": num_attention_heads,
+                "emb_dropout": 0.1,
+                "dropout": 0.1,
+                "attention_dropout": 0.1,
+                "activation_dropout": 0.1,
+                "max_seq_len": max_seq_len,
+                "activation_fn": activation_fn,
+                # "pooler_activation_fn": "tanh",
+                "post_ln": False,
+                "no_final_head_layer_norm": True,
+            },
         },
         "loss": {
     

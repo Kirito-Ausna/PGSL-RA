@@ -104,3 +104,8 @@ def get_activation_fn(activation: str) -> Callable:
         return lambda x: x
     else:
         raise RuntimeError("--activation-fn {} not supported".format(activation))
+    
+def ipa_point_weights_init_(weights):
+    with torch.no_grad():
+        softplus_inverse_1 = 0.541324854612918
+        weights.fill_(softplus_inverse_1)
