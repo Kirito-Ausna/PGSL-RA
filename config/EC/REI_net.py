@@ -35,16 +35,45 @@ config = mlc.ConfigDict(
             "metric": "f1_max",
             "max_epochs": 75,
         },
+        "downstream":{
+            "encoder": "REI_net",
+            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
+            "head": {
+                "model_out_dim": encoder_embed_dim,
+                "task_num": 538, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+            },
+            "metric": ['f1_max','auprc_micro'],
+            "encoder_fixed": False,
+            "reweight": False,
+        },
         "data":{
-            "dataset": {
-                "name": "EC",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/",
-                "test_cutoff": 0.95,
+            # "dataset": {
+            #     "name": "EC",
+            #     "root_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/",
+            #     "test_cutoff": 0.95,
+            #     "training_mode": True,
+            #     "eval": True,
+            #     "feature_pipeline": "Graphformer",
+            #     "processed_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/processed/",
+            #     "esm_save_dir": None,
+            # },
+            "dataset":{
+                "name": "Paired",
                 "training_mode": True,
                 "eval": True,
-                "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/processed/",
-                "esm_save_dir": None,
+                "test": True,
+                "task": "EC", # when task is GO, branch is required
+                "branch": None,
+                "paired": True, # allow only one protein within each pair
+                "pred": False, # use predicted structure
+                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
+                "framework": "PGSL_RPA",
+                "test":{
+                    "plddt_cutoff": 70,
+                    "tm_cutoff": 0.5,
+                    "ground_truth": True,
+                }
             },
             "common":{
                 "feat":{
@@ -85,11 +114,11 @@ config = mlc.ConfigDict(
             },
             "data_module":{
                 "train_dataloader":{
-                    "batch_size": 8,
+                    "batch_size": 16,
                     "num_workers": 32,
                 },
                 "val_dataloader":{
-                    "batch_size": 8,
+                    "batch_size": 16,
                     "num_workers": 32,
                 },
                 "predict_dataloader":{
@@ -98,21 +127,6 @@ config = mlc.ConfigDict(
                 },
             },
         },
-
-
-        "downstream":{
-            "encoder": "REI_net",
-            "encoder_checkpoint": None,
-            "head": {
-                "model_out_dim": encoder_embed_dim,
-                "task_num": 538, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-            },
-            "metric": ['f1_max','auprc_micro'],
-            "encoder_fixed": False,
-            "reweight": False,
-        },
-
 
         "model": {
             "embedder": {
@@ -174,9 +188,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 2650, # 5 epochs
-            "start_decay_after_n_steps": 26500, # 50 epochs
-            "decay_every_n_steps": 265 # 1 epoch
+            "warmup_no_steps": 2000, # 5 epochs
+            "start_decay_after_n_steps": 21875, # 50 epochs
+            "decay_every_n_steps": 200 # 0.5 epoch
         }
 
     }

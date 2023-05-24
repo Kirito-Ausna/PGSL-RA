@@ -180,7 +180,7 @@ config = mlc.ConfigDict(
             "max_lr": 1e-4,
             "warmup_no_steps": 4300,
             "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 430
+            "decay_every_n_steps": 360
         }
 
     }

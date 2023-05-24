@@ -35,17 +35,46 @@ config = mlc.ConfigDict(
             "metric": "f1_max",
             "max_epochs": 75,
         },
+        "downstream":{
+            "encoder": "REI_net",
+            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
+            "head": {
+                "model_out_dim": encoder_embed_dim,
+                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+            },
+            "metric": ['f1_max', 'auprc_micro'],
+            "encoder_fixed": False,
+            "reweight": False,
+        },
         "data":{
-            "dataset": {
-                "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "BP",
-                "test_cutoff": 0.95,
+            # "dataset": {
+            #     "name": "GO",
+            #     "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
+            #     "branch": "BP",
+            #     "test_cutoff": 0.95,
+            #     "training_mode": True,
+            #     "eval": True,
+            #     "feature_pipeline": "Graphformer",
+            #     "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+            #     "esm_save_dir": None,
+            # },
+            "dataset":{
+                "name": "Paired",
                 "training_mode": True,
                 "eval": True,
-                "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
-                "esm_save_dir": None,
+                "test": True,
+                "task": "GO", # when task is GO, branch is required
+                "branch": "BP",
+                "paired": True, # allow only one protein within each pair
+                "pred": False, # use predicted structure
+                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
+                "framework": "PGSL_RPA",
+                "test":{
+                    "plddt_cutoff": 70,
+                    "tm_cutoff": 0.5,
+                    "ground_truth": True,
+                }
             },
             "common":{
                 "feat":{
@@ -98,18 +127,6 @@ config = mlc.ConfigDict(
                     "num_workers": 16,
                 },
             },
-        },
-        "downstream":{
-            "encoder": "REI_net",
-            "encoder_checkpoint": None,
-            "head": {
-                "model_out_dim": encoder_embed_dim,
-                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-            },
-            "metric": ['f1_max', 'auprc_micro'],
-            "encoder_fixed": False,
-            "reweight": False,
         },
         "model": {
             "embedder": {
@@ -173,7 +190,7 @@ config = mlc.ConfigDict(
             "max_lr": 1e-4,
             "warmup_no_steps": 4300,
             "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 430
+            "decay_every_n_steps": 360
         }
 
     }

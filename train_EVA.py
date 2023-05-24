@@ -170,7 +170,7 @@ if __name__ == "__main__":
         "--debug", type=bool_type, default=False
     )
     parser.add_argument(
-        "--test", type=bool_type, default=False
+        "--test", type=bool_type, default=True
     )
     parser.add_argument(
         "--checkpoint_best_val", type=bool_type, default=True,
