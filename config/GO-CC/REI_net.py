@@ -33,19 +33,37 @@ config = mlc.ConfigDict(
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
             "pretrain": False,
             "metric": "f1_max",
-            "max_epochs": 30,
+            "max_epochs": 36,
+        },
+        "downstream":{
+            "encoder": "REI_net",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
+            "head": {
+                "model_out_dim": encoder_embed_dim,
+                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+            },
+            "metric": ['f1_max','auprc_micro'],
+            "encoder_fixed": False,
+            "reweight": False,
         },
         "data":{
-            "dataset": {
-                "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "CC",
-                "test_cutoff": 0.95,
+            "dataset":{
+                "name": "Paired",
                 "training_mode": True,
                 "eval": True,
-                "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
-                "esm_save_dir": None,
+                "test": True,
+                "task": "GO", # when task is GO, branch is required
+                "branch": "CC",
+                "paired": False, # allow only one protein within each pair
+                "pred": False, # use predicted structure
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "framework": "PGSL-RPA",
+                "test":{
+                    "plddt_cutoff": 70,
+                    "tm_cutoff": 0.5,
+                    "ground_truth": True,
+                }
             },
             "common":{
                 "feat":{
@@ -98,18 +116,6 @@ config = mlc.ConfigDict(
                     "num_workers": 16,
                 },
             },
-        },
-        "downstream":{
-            "encoder": "REI_net",
-            "encoder_checkpoint": None,
-            "head": {
-                "model_out_dim": encoder_embed_dim,
-                "task_num": 320, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-            },
-            "metric": ['f1_max','auprc_micro'],
-            "encoder_fixed": False,
-            "reweight": False,
         },
         "model": {
             "embedder": {
