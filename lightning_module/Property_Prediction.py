@@ -6,9 +6,8 @@ import torch
 import torchmetrics
 from torch.nn import functional as F
 
-from task_framework.property_prediction import MultipleBinaryClassification
+from task_framework.property_prediction import MultiBinaryClassifyHead
 from lightning_module._base import register_task
-# from models.alpha_encoder import AlphaEncoder
 from models._base import get_model
 from modules import losses, metrics
 from utils.lr_scheduler import AlphaFoldLRScheduler
@@ -19,11 +18,11 @@ class MultiBClassifyWrapper(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        encoder = get_model(config.downstream.encoder)(config)
-        self.heads = MultipleBinaryClassification(encoder, **config.downstream.head)
+        self.encoder = get_model(config.downstream.encoder)(config)
+        self.heads = MultiBinaryClassifyHead(**config.downstream.head)
         if config.downstream.encoder_fixed:
-            self.heads.model.eval()
-            for param in self.heads.model.parameters():
+            self.encoder.eval()
+            for param in self.encoder.parameters():
                 param.requires_grad = False
         self.tasks = self.config.downstream.head.task_num
         self.last_lr_step = -1
@@ -90,7 +89,9 @@ class MultiBClassifyWrapper(pl.LightningModule):
 
 
     def forward(self, batch):
-        return self.heads(batch)
+        # return self.heads(batch)
+        node_repr = self.encoder(batch)
+        return self.heads(batch, node_repr)
     
     def training_step(self, batch, batch_idx):
         # pdb.set_trace()
@@ -148,7 +149,6 @@ class MultiBClassifyWrapper(pl.LightningModule):
         with torch.no_grad():
            self.evaluate(pred, target, phase, test)
  
-    #TODO: Many metrics are not correctly implemented, we neead to define own metrics using torchmetrics
     def evaluate(self, pred, target, phase, test):
         for _metric in self.metrics:
             getattr(self, f"{phase}_{_metric}").update(pred, target)
@@ -164,7 +164,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
         ) -> torch.optim.Adam:
 
         optimizer = torch.optim.AdamW(
-            self.heads.parameters(), 
+            self.parameters(), 
             lr=learning_rate, 
             eps=eps
         )

@@ -121,9 +121,16 @@ def main(args):
         ckpt_path = args.resume_from_ckpt
     
     if(config.globals.pretrain):
-        encoder_model_state_dict = torch.load(config.downstream.encoder_checkpoint)["state_dict"]
-        #pdb.set_trace()
-        model_module.heads.load_state_dict(encoder_model_state_dict, strict=False)
+        # encoder_model_state_dict = torch.load(config.downstream.encoder_checkpoint)["state_dict"]
+        pretrain_model_state_dict = torch.load(config.downstream.encoder_checkpoint)["state_dict"]
+        # extract the encoder part
+        encoder_model_state_dict = {}
+        for k, v in pretrain_model_state_dict.items():
+            if k.startswith("encoder."):
+                encoder_model_state_dict[k[len("encoder."):]] = v
+        # pdb.set_trace()
+        # model_module.heads.load_state_dict(encoder_model_state_dict, strict=False)
+        model_module.encoder.load_state_dict(encoder_model_state_dict)
 
     # model_module.preprocess()
     trainer.fit(
@@ -170,7 +177,7 @@ if __name__ == "__main__":
         "--debug", type=bool_type, default=False
     )
     parser.add_argument(
-        "--test", type=bool_type, default=False
+        "--test", type=bool_type, default=True
     )
     parser.add_argument(
         "--checkpoint_best_val", type=bool_type, default=True,

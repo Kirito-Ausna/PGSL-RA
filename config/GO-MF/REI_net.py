@@ -31,13 +31,13 @@ config = mlc.ConfigDict(
         "globals":{
             "encoder_embed_dim": encoder_embed_dim,
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
-            "pretrain": False,
+            "pretrain": True,
             "metric": "f1_max",
             "max_epochs": 75,
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": None,
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -55,10 +55,10 @@ config = mlc.ConfigDict(
                 "test": True,
                 "task": "GO", # when task is GO, branch is required
                 "branch": "MF",
-                "paired": True, # allow only one protein within each pair
+                "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
                 "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
-                "framework": "PGSL",
+                "framework": "PGSL-RPA",
                 "test":{
                     "plddt_cutoff": 70,
                     "tm_cutoff": 0.5,
@@ -180,7 +180,7 @@ config = mlc.ConfigDict(
             "max_lr": 1e-4,
             "warmup_no_steps": 4300,
             "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 430
+            "decay_every_n_steps": 360
         }
 
     }
