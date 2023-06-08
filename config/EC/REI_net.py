@@ -56,7 +56,7 @@ config = mlc.ConfigDict(
                 "eval": True,
                 "test": True,
                 "task": "EC", # when task is GO, branch is required
-                "branch": "BP",
+                "branch": None,
                 "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
                 "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
@@ -180,9 +180,9 @@ config = mlc.ConfigDict(
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 2650, # 5 epochs
-            "start_decay_after_n_steps": 26500, # 50 epochs
-            "decay_every_n_steps": 265 # 1 epoch
+            "warmup_no_steps": 2000, # 5 epochs
+            "start_decay_after_n_steps": 21875, # 50 epochs
+            "decay_every_n_steps": 200 # 0.5 epoch
         }
 
     }
