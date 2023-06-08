@@ -70,7 +70,7 @@ def main(args):
     if args.resume_from_ckpt is not None:
         # model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config)
         # provide the checkpoint loading code
-        ckpt = torch.load(args.resume_from_ckpt)
+        # ckpt = torch.load(args.resume_from_ckpt)
         # pdb.set_trace()
         model_module = model_module.load_from_checkpoint(args.resume_from_ckpt, config=config)
     trainer.test(model=model_module, datamodule=data_module)
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default="mbclassify")
     parser.add_argument("--config_name", type=str, default="Anontation_Test")
     parser.add_argument(
-        "--output_dir", type=str, default="/root/Generative-Models/PGSL-RA/test_result/IPAEncoder/Vanilla/PredStruct/EC/",
+        "--output_dir", type=str, default="/root/Generative-Models/PGSL-RA/test_result/REI_net/PGSLv1_Origin/CC/",
         help='''Directory in which to output checkpoints, logs, etc. Ignored
                 if not on rank 0'''
     )
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         "--debug", type=bool_type, default=False
     )
     parser.add_argument(
-        "--resume_from_ckpt", type=str, default="/root/Generative-Models/PGSL-RA/EVA_result/mbclassify/EC/EC_IPAEncoder/EC_IPAEncoder_re0/checkpoints/RefineDiff-epoch66-f1_max=0.710.ckpt",
+        "--resume_from_ckpt", type=str, default="/root/Generative-Models/PGSL-RA/EVA_result/mbclassify/GOCC/GOCC_REI_net/GOCC_REI_net_PGSL_mixup_ori/checkpoints/RefineDiff-epoch20-f1_max=0.372.ckpt",
         help="Path to a model checkpoint from which to restore training state"
     )
     #Logger
@@ -109,10 +109,10 @@ if __name__ == "__main__":
         "--wandb", action="store_true", default=False,
     )
     parser.add_argument(
-        "--experiment_name", type=str, default="IPAEncoder-Vanilla-PredStrcut-EC",
+        "--experiment_name", type=str, default="REI_net-PGSL-Test-GOCC",
     )
     parser.add_argument(
-        "--wandb_id", type=str, default="IPAEncoder-Vanilla-PredStruct-EC",
+        "--wandb_id", type=str, default="REI_net-PGSL-Test-GOCC",
     )
     parser.add_argument(
         "--wandb_group", type=str, default="PredStruct",

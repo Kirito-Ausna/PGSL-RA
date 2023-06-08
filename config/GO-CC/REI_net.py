@@ -31,7 +31,7 @@ config = mlc.ConfigDict(
         "globals":{
             "encoder_embed_dim": encoder_embed_dim,
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
-            "pretrain": False,
+            "pretrain": True,
             "metric": "f1_max",
             "max_epochs": 36,
         },
@@ -90,7 +90,7 @@ config = mlc.ConfigDict(
             "eval": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 1024,
                 "supervised": True,
                 "uniform_recycling": False,
             },

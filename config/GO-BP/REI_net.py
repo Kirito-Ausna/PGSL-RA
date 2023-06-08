@@ -31,21 +31,50 @@ config = mlc.ConfigDict(
         "globals":{
             "encoder_embed_dim": encoder_embed_dim,
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
-            "pretrain": False,
+            "pretrain": True,
             "metric": "f1_max",
             "max_epochs": 75,
         },
+        "downstream":{
+            "encoder": "REI_net",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
+            "head": {
+                "model_out_dim": encoder_embed_dim,
+                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
+                "num_mlp_layers": 3,
+            },
+            "metric": ['f1_max', 'auprc_micro'],
+            "encoder_fixed": False,
+            "reweight": False,
+        },
         "data":{
-            "dataset": {
-                "name": "GO",
-                "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
-                "branch": "BP",
-                "test_cutoff": 0.95,
+            # "dataset": {
+            #     "name": "GO",
+            #     "root_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/",
+            #     "branch": "BP",
+            #     "test_cutoff": 0.95,
+            #     "training_mode": True,
+            #     "eval": True,
+            #     "feature_pipeline": "Graphformer",
+            #     "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
+            #     "esm_save_dir": None,
+            # },
+            "dataset":{
+                "name": "Paired",
                 "training_mode": True,
                 "eval": True,
-                "feature_pipeline": "Graphformer",
-                "processed_dir": "/usr/commondata/local_public/protein-datasets/GeneOntology/processed/",
-                "esm_save_dir": None,
+                "test": True,
+                "task": "GO", # when task is GO, branch is required
+                "branch": "BP",
+                "paired": False, # allow only one protein within each pair
+                "pred": False, # use predicted structure
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "framework": "PGSL-RPA",
+                "test":{
+                    "plddt_cutoff": 70,
+                    "tm_cutoff": 0.5,
+                    "ground_truth": True,
+                }
             },
             "common":{
                 "feat":{
@@ -72,7 +101,7 @@ config = mlc.ConfigDict(
             "eval": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 1024,
                 "supervised": True,
                 "uniform_recycling": False,
             },
@@ -99,18 +128,7 @@ config = mlc.ConfigDict(
                 },
             },
         },
-        "downstream":{
-            "encoder": "REI_net",
-            "encoder_checkpoint": None,
-            "head": {
-                "model_out_dim": encoder_embed_dim,
-                "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
-                "num_mlp_layers": 3,
-            },
-            "metric": ['f1_max', 'auprc_micro'],
-            "encoder_fixed": False,
-            "reweight": False,
-        },
+        
         "model": {
             "embedder": {
                 "protein_angle_embedder": {
@@ -173,7 +191,7 @@ config = mlc.ConfigDict(
             "max_lr": 1e-4,
             "warmup_no_steps": 4300,
             "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 430
+            "decay_every_n_steps": 360
         }
 
     }

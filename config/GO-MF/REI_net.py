@@ -37,7 +37,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 489, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -91,7 +91,7 @@ config = mlc.ConfigDict(
             "eval": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 1024,
                 "supervised": True,
                 "uniform_recycling": False,
             },
