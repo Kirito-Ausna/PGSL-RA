@@ -55,16 +55,18 @@ class PairedDataset(Dataset):
             # should load labels and help find the lmdb files
             self.branch = config.dataset.branch
             self.branches = ["MF", "BP", "CC"]
-        processed_path = os.path.join(self.root_dir, "align_processed")
+        align_processed_path = os.path.join(self.root_dir, "align_processed")
+        processed_path = os.path.join(self.root_dir, "processed")
+        paired_eval_frameworks = ["SAO", "PGSL"]
         if mode == "test":
             self.exp_lmdb_path = os.path.join(processed_path,"exp_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.exp_lmdb_path, "structures.lmdb-ids")
         elif mode in ["tm_test", "plddt_test"]:
             self.pred_lmdb_path = os.path.join(processed_path,"pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
-        elif self.paired and mode == "train" or (self.paired and mode == "eval" and self.framework == "PGSL"):
-            self.exp_lmdb_path = os.path.join(processed_path,"exp_struct", f"{self.task}_{self.mode}")
-            self.pred_lmdb_path = os.path.join(processed_path, "pred_struct", f"{self.task}_{self.mode}")
+        elif self.paired and mode == "train" or (self.paired and mode == "eval" and self.framework in paired_eval_frameworks):
+            self.exp_lmdb_path = os.path.join(align_processed_path,"exp_struct", f"{self.task}_{self.mode}")
+            self.pred_lmdb_path = os.path.join(align_processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
         elif self.pred:
             self.pred_lmdb_path = os.path.join(processed_path, "pred_struct", f"{self.task}_{self.mode}")
@@ -170,17 +172,29 @@ class PairedDataset(Dataset):
         if exp_data is not None and pred_data is not None:
             # feats = {**exp_data, **pred_data}
             if self.framework == "PGSL":
-                feats = pred_data
-                feats['label_bb_rigid_tensors'] = exp_data["bb_rigid_tensors"]
+                # randomly choose one structure as the input
+                if np.random.rand() > 0.5: # mix up the experimental and predicted data
+                    feats = pred_data # Align the predicted data and experimental data, refinement task
+                else:
+                    feats = exp_data # Autoencoder task for experimental data to guide the encoder learn correct experimental data's embeddings
+                feats['label_bb_rigid_tensors'] = exp_data["bb_rigid_tensors"] # The goal is to align the predicted data to the experimental data(directional) 
+                                                                            # and maintain the representive power of experimental data for downstream tasks learning 
             elif self.framework == "Noisy_Training":
                 # randomly choose one structure as the input
                 if np.random.rand() > 0.5:
                     feats = pred_data
                 else:
                     feats = exp_data
-            else:
-                feats["predicted"] = pred_data
-                feats["experimental"] = exp_data
+            elif self.framework == "SAO":
+                # feats["predicted"] = pred_data
+                # feats["experimental"] = exp_data
+                # Create new feature to generate the input not the concatenation of two inputs
+                feats = pred_data
+                # Only the neccessary features for SAO for the sake of simplicity
+                feats["exp_all_atom_positions"] = exp_data["decoy_all_atom_positions"]
+                feats["exp_angle_feats"] = exp_data["decoy_angle_feats"]
+                feats["label_bb_rigid_tensors"] = exp_data["bb_rigid_tensors"]
+
         elif exp_data is None:
             feats = pred_data
         else:

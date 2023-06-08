@@ -32,12 +32,14 @@ config = mlc.ConfigDict(
             "encoder_embed_dim": encoder_embed_dim,
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
             "pretrain": True,
+            "pretrain": True,
             "metric": "f1_max",
             "max_epochs": 75,
         },
+
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 538, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -47,17 +49,8 @@ config = mlc.ConfigDict(
             "encoder_fixed": False,
             "reweight": False,
         },
+
         "data":{
-            # "dataset": {
-            #     "name": "EC",
-            #     "root_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/",
-            #     "test_cutoff": 0.95,
-            #     "training_mode": True,
-            #     "eval": True,
-            #     "feature_pipeline": "Graphformer",
-            #     "processed_dir": "/usr/commondata/local_public/protein-datasets/EnzymeCommission/processed/",
-            #     "esm_save_dir": None,
-            # },
             "dataset":{
                 "name": "Paired",
                 "training_mode": True,
@@ -65,10 +58,10 @@ config = mlc.ConfigDict(
                 "test": True,
                 "task": "EC", # when task is GO, branch is required
                 "branch": None,
-                "paired": True, # allow only one protein within each pair
+                "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
-                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
-                "framework": "PGSL_RPA",
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "framework": "PGSL-RPA",
                 "test":{
                     "plddt_cutoff": 70,
                     "tm_cutoff": 0.5,
@@ -100,7 +93,7 @@ config = mlc.ConfigDict(
             "eval": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 1024,
                 "supervised": True,
                 "uniform_recycling": False,
             },

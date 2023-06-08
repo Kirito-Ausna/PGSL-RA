@@ -14,7 +14,7 @@ from utils.rigid_utils import Rigid, Rotation
 from utils import residue_constants
 
 
-class PGSL_head(nn.Module):
+class denoise_head(nn.Module):
     """
     The main part of the PGSL-RPA Framework, it take the embeddings of encoder and decode the structure.
     Or it can be seen as pretrain head of the PGSL-RPA framework.
@@ -26,9 +26,10 @@ class PGSL_head(nn.Module):
                 A dict-like config object (like the one in config.py)
 
         """
-        super(PGSL_head, self).__init__()
+        super(denoise_head, self).__init__()
 
-        self.head_config = config.pretrain.head
+        # self.head_config = config.pretrain.head
+        self.head_config = config.pretrain.framework.denoise_head
         self.globals = config.globals
         self.num_steps = self.globals.num_steps
 

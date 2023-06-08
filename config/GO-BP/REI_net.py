@@ -37,7 +37,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -66,10 +66,10 @@ config = mlc.ConfigDict(
                 "test": True,
                 "task": "GO", # when task is GO, branch is required
                 "branch": "BP",
-                "paired": True, # allow only one protein within each pair
+                "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
-                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
-                "framework": "PGSL_RPA",
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "framework": "PGSL-RPA",
                 "test":{
                     "plddt_cutoff": 70,
                     "tm_cutoff": 0.5,
@@ -101,7 +101,7 @@ config = mlc.ConfigDict(
             "eval": {
                 "fixed_size": True,
                 "crop": True,
-                "crop_size": 512,
+                "crop_size": 1024,
                 "supervised": True,
                 "uniform_recycling": False,
             },
@@ -128,6 +128,7 @@ config = mlc.ConfigDict(
                 },
             },
         },
+        
         "model": {
             "embedder": {
                 "protein_angle_embedder": {
