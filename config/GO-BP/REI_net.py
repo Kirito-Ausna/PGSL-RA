@@ -31,13 +31,13 @@ config = mlc.ConfigDict(
         "globals":{
             "encoder_embed_dim": encoder_embed_dim,
             "encoder_ffn_embed_dim": encoder_ffn_embed_dim,
-            "pretrain": False,
+            "pretrain": True,
             "metric": "f1_max",
             "max_epochs": 75,
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small/checkpoints/RefineDiff-epoch155-delta_gdt_ts=0.034.ckpt",
+            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
