@@ -108,6 +108,21 @@ class PGSL_SAO(pl.LightningModule):
         decoy_coords_masked = decoy_coords * all_atom_mask[..., None]
         decoy_coords_masked_ca = decoy_coords_masked[..., ca_pos, :]
         all_atom_mask_ca = all_atom_mask[..., ca_pos]
+
+        logits_encoder = outputs["mask_pred_logits"]
+        masked_tokens = outputs["masked_tokens"]
+
+        if masked_tokens is not None:
+            target = batch["mask_targets"][masked_tokens]
+        else:
+            masked_tokens = batch["decoy_seq_mask"]
+            target = batch["mask_targets"][masked_tokens]
+        
+        sample_size = masked_tokens.long().sum()
+        masked_pred = logits_encoder.argmax(dim=-1)
+        masked_hit = (masked_pred == target).long().sum()
+        masked_cnt = sample_size
+        metrics["masked_token_acc"] = masked_hit / masked_cnt
     
         lddt_ca_score = lddt_ca(
             pred_coords_ca,
@@ -128,20 +143,6 @@ class PGSL_SAO(pl.LightningModule):
         metrics["lddt_ca"] = lddt_ca_score
         metrics["delta_lddt_ca"] = lddt_ca_score - starting_lddt
    
-        # drmsd_ca_score = drmsd(
-        #     pred_coords_masked_ca,
-        #     gt_coords_masked_ca,
-        #     mask=all_atom_mask_ca, # still required here to compute n
-        # )
-        
-        # starting_drmsd = drmsd(
-        #     decoy_coords_masked_ca,
-        #     gt_coords_masked_ca,
-        #     mask=all_atom_mask_ca, # still required here to compute n
-        # )
-   
-        # metrics["drmsd_ca"] = drmsd_ca_score
-        # metrics["delta_drmsd_ca"] = drmsd_ca_score - starting_drmsd
     
         if(superimposition_metrics):
             superimposed_pred, alignment_rmsd = superimpose(
@@ -150,9 +151,6 @@ class PGSL_SAO(pl.LightningModule):
             gdt_ts_score = gdt_ts(
                 superimposed_pred, gt_coords_masked_ca, all_atom_mask_ca
             )
-            # gdt_ha_score = gdt_ha(
-            #     superimposed_pred, gt_coords_masked_ca, all_atom_mask_ca
-            # )
 
             # metrics["alignment_rmsd"] = alignment_rmsd
             metrics["gdt_ts"] = gdt_ts_score
@@ -164,9 +162,6 @@ class PGSL_SAO(pl.LightningModule):
             starting_gdt_ts = gdt_ts(
                 superimposed_pred, gt_coords_masked_ca, all_atom_mask_ca
             )
-            # starting_gdt_ha = gdt_ha(
-            #     superimposed_pred, gt_coords_masked_ca, all_atom_mask_ca
-            # )
 
             metrics["delta_gdt_ts"] = gdt_ts_score - starting_gdt_ts
             # metrics["delta_gdt_ha"] = gdt_ha_score - starting_gdt_ha

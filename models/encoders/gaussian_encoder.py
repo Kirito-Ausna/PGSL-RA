@@ -91,7 +91,7 @@ class GaussianEncoder(nn.Module):
         )
         num_distance = self.embedder_config["gaussian_layer"]["num_pair_distance"]
         K = self.embedder_config["gaussian_layer"]["kernel_num"]
-        n_edge_types = len(restypes_with_x) * len(restypes_with_x)
+        n_edge_types = (len(restypes_with_x) + 1) * (len(restypes_with_x) + 1)
         self.gbf = GaussianLayer(num_distance, K, n_edge_types)
         self.gbf_proj = NonLinearHead(
             **self.embedder_config["bias_proj_layer"]
