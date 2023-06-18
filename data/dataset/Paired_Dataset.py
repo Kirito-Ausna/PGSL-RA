@@ -226,7 +226,3 @@ class PairedDataset(Dataset):
             feats["targets"] = utils.sparse_coo_tensor(indices, values, (len(self.tasks),)).to_dense()
 
         return feats
-
-    
-        
-        
