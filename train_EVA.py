@@ -60,13 +60,14 @@ def main(args):
     if(args.checkpoint_best_val):
         checkpoint_dir = os.path.join(args.output_dir, "checkpoints")
         metric = config.globals.metric
+        save_mode = getattr(config.globals, "save_mode", "max")
         mc = ModelCheckpoint(
             dirpath=checkpoint_dir,
             filename="RefineDiff-epoch{epoch:02d}-"+metric+"={val/"+metric+":.3f}",
             auto_insert_metric_name=False,
             monitor="val/"+metric,
             save_top_k=2,
-            mode="max",
+            mode=save_mode,
             save_last=False,
             save_on_train_epoch_end=False
         )

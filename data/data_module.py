@@ -73,7 +73,7 @@ class UnifiedDataModule(pl.LightningDataModule):
                 self.val_dataset = dataset_gen(mode = "eval")
         if self.config.dataset.test:
             test_modes = ["tm_test", "plddt_test"]
-            if self.config.dataset.test.ground_truth:
+            if self.config.dataset.inference_setting.ground_truth:
                 test_modes.append("test")
             self.test_datasets = [dataset_gen(mode = mode) for mode in test_modes]
     

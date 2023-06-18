@@ -1,11 +1,12 @@
 import copy
 import random
-from functools import wraps
+import logging
 import pdb
 import torch
 from torch import nn
 from torch.nn import functional as F
 from task_framework.PGSL_vanilla import denoise_head
+from models.sublayers import MaskLMHead
 from utils.loss import backbone_loss
 
 # helper functions
@@ -29,7 +30,7 @@ def set_requires_grad(model, val):
     for p in model.parameters():
         p.requires_grad = val
 
-# split a the feacture dict batch into two parts
+# split a the feacture dict batch into three parts
 def split_batch(batch):
     decoy_batch = {}
     exp_batch = {}
@@ -43,8 +44,12 @@ def split_batch(batch):
     exp_batch["bb_rigid_tensors"] = batch["label_bb_rigid_tensors"]
     exp_batch["decoy_seq_mask"] = batch["decoy_seq_mask"]
     exp_batch["decoy_aatype"] = batch["decoy_aatype"]
+    # copy the exp view to mask view
+    mask_batch = copy.deepcopy(exp_batch)
+    mask_batch["decoy_aatype"] = batch["mask_aatype"]
+    mask_batch["decoy_angle_feats"] = batch["mask_angle_feats"]
 
-    return decoy_batch, exp_batch
+    return decoy_batch, exp_batch, mask_batch
     # for key, value in batch.items():
     #     batch1[key] = value[:split_size]
     #     batch2[key] = value[split_size:]
@@ -56,6 +61,17 @@ def align_loss(x, y):
     y = F.normalize(y, dim=-1, p=2)
     align_loss = 2 - 2 * (x * y).sum(dim=-1)
     return align_loss.mean()
+
+def mif_loss(logits_encoder, target, masked_tokens=None):
+    if masked_tokens is not None:
+        target = target[masked_tokens]
+    
+    return F.nll_loss(
+        F.log_softmax(logits_encoder, dim=-1,dtype=torch.float32),
+        target,
+        ignore_index=-1,
+        reduction='mean',
+    )
 
 
 # exponential moving average
@@ -136,8 +152,9 @@ class SAO(nn.Module):
         self.encoder = encoder
         self.config = config
         self.denoise_head = denoise_head(config)
-        self.framework = config.pretrain.framework
         #TODO: add mask structure modeling head
+        self.framework = config.pretrain.framework
+        self.mask_head = MaskLMHead(**self.framework.mif_head)
         self.use_momentum = self.framework.SAO.use_momentum
         self.moving_average_decay = self.framework.SAO.moving_average_decay
         self.online_encoder = NetWrapper(encoder, **self.framework.projector)
@@ -169,6 +186,13 @@ class SAO(nn.Module):
 
         return pred_struct_pred, pred_struct_emb
     
+    def get_mask_embeddings(self, mask_struct, return_projection=True):
+
+        mask_struct_proj, mask_struct_emb = self.online_encoder(mask_struct, return_projection = return_projection)
+        mask_struct_pred = self.online_predictor(mask_struct_proj)
+
+        return mask_struct_pred, mask_struct_emb[0]
+    
     def denoise_struct(self, batch, pred_struct_emb):
         s, z = pred_struct_emb
         outputs = self.denoise_head(batch, s, z)
@@ -194,6 +218,12 @@ class SAO(nn.Module):
             "pred_align_loss": lambda: align_loss(
                 outputs["pred_struct_pred"], outputs["exp_struct_proj"]
             ), #TODO: add mask_align_loss and mlm loss -->ignore_index = -1
+            "mask_align_loss": lambda: align_loss(
+                outputs["mask_struct_pred"], outputs["exp_struct_proj"]
+            ),
+            "mif_loss": lambda: mif_loss(
+                outputs["mask_struct_emb"], batch["mask_targets"], outputs["masked_tokens"]
+            )
         }
 
         cum_loss = 0
@@ -204,7 +234,7 @@ class SAO(nn.Module):
             loss = loss_fn()
             # pdb.set_trace()
             if(torch.isnan(loss) or torch.isinf(loss)):
-                # logging.warning(f"{loss_name} loss is NaN. Skipping...")
+                logging.warning(f"{loss_name} loss is NaN. Skipping...")
                 loss = loss.new_tensor(0., requires_grad=True)
             cum_loss = cum_loss + weight * loss
             losses[loss_name] = loss.detach().clone()
@@ -227,14 +257,24 @@ class SAO(nn.Module):
             return self.online_encoder(batch, return_projection = return_projection)
         
         # Split the three views
-        pred_struct, exp_struct = split_batch(batch)
+        pred_struct, exp_struct, mask_struct = split_batch(batch)
         # Go through different pipelines
         pred_struct_pred, pred_struct_emb = self.get_pred_embeddings(pred_struct, return_projection = return_projection)
+        mask_struct_pred, mask_struct_emb = self.get_mask_embeddings(mask_struct, return_projection = return_projection)
         exp_struct_proj = self.get_exp_embeddings(exp_struct, return_projection = return_projection)
-        outputs = self.denoise_struct(batch, pred_struct_emb)
 
+        outputs = self.denoise_struct(batch, pred_struct_emb)
         outputs["pred_struct_pred"] = pred_struct_pred
+        outputs["mask_struct_pred"] = mask_struct_pred
         outputs["exp_struct_proj"] = exp_struct_proj
+
+        padding_mask = batch["decoy_seq_mask"] - 1 # -1 to make 0s->-1s and 1s->0s
+        masked_tokens = batch["mask_targets"] + padding_mask # convert padding_idx from 0 to -1 (ignored_index)
+        masked_tokens = masked_tokens.ne(-1) # get mask_tokens
+        if masked_tokens is None:
+            masked_tokens = batch["decoy_seq_mask"] # predict all tokens
+        outputs["masked_tokens"] = masked_tokens
+        outputs["mask_pred_logits"] = self.mask_head(mask_struct_emb, masked_tokens) # [B, N, d] to [Num_masked, 22]
 
         loss = self.SAO_loss(outputs, batch, return_breakdown)
 

@@ -46,15 +46,24 @@ class PairedDataset(Dataset):
         self.pred = config.dataset.pred # Use when paired is False
         self.root_dir = config.dataset.root_dir
         self.framework = config.dataset.framework
+
+        mask_setting = config.dataset.mask_setting
+        self.mask_prob = mask_setting.mask_prob
+        self.leave_unmasked_prob = mask_setting.leave_unmasked_prob
+        self.random_token_prob = mask_setting.random_token_prob
+        self.mask_index = 21 # 21 is the index of mask token in the vocabulary
+
         self.exp_lmdb_path = None
         self.pred_lmdb_path = None
         self.exp_db = None
         self.pred_db = None
         self.pos_targets = None
+
         if self.task == "GO":
             # should load labels and help find the lmdb files
             self.branch = config.dataset.branch
             self.branches = ["MF", "BP", "CC"]
+        
         align_processed_path = os.path.join(self.root_dir, "align_processed")
         processed_path = os.path.join(self.root_dir, "processed")
         paired_eval_frameworks = ["SAO", "PGSL"]
@@ -65,6 +74,7 @@ class PairedDataset(Dataset):
             self.pred_lmdb_path = os.path.join(processed_path,"pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
         elif self.paired and mode == "train" or (self.paired and mode == "eval" and self.framework in paired_eval_frameworks):
+            # pdb.set_trace()
             self.exp_lmdb_path = os.path.join(align_processed_path,"exp_struct", f"{self.task}_{self.mode}")
             self.pred_lmdb_path = os.path.join(align_processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
@@ -82,7 +92,7 @@ class PairedDataset(Dataset):
             self.pdb_ids = self.pdb_ids[:100]
         
         self._connect_db()
-        if self.framework != "PGSL":
+        if self.framework not in paired_eval_frameworks:
             self.tsv_file = os.path.join(self.root_dir, f"nrPDB-{self.task}_annot.tsv")
             self.load_anontation(self.tsv_file, self.pdb_ids)
 
@@ -161,6 +171,57 @@ class PairedDataset(Dataset):
 
         return exp_data, pred_data
     
+    def _create_mask_view(self, feat):
+            aatype = feat["decoy_aatype"].numpy()
+            exp_angle_feats = feat["exp_angle_feats"]
+            sz = len(aatype)
+            num_mask = int(self.mask_prob * sz + np.random.rand()) # add a random number for probabilistic rounding 
+            mask_idc = np.random.choice(sz, num_mask, replace=False)
+            mask = np.full(sz, False)
+            mask[mask_idc] = True
+            feat["mask_targets"] = np.full(sz, -1) # -1 is the ignore index value for masked tokens
+            feat["mask_targets"][mask] = aatype[mask]
+            # decide unmasking and random replacement
+            rand_or_unmask_prob = self.random_token_prob + self.leave_unmasked_prob
+            if rand_or_unmask_prob > 0.0:
+                rand_or_unmask = mask & (np.random.rand(sz) < rand_or_unmask_prob)
+                if self.random_token_prob == 0.0:
+                    unmask = rand_or_unmask
+                    rand_mask = None
+                elif self.leave_unmasked_prob == 0.0:
+                    unmask = None
+                    rand_mask = rand_or_unmask
+                else:
+                    unmask_prob = self.leave_unmasked_prob / rand_or_unmask_prob
+                    decision = np.random.rand(sz) < unmask_prob
+                    unmask = rand_or_unmask & decision
+                    rand_mask = rand_or_unmask & (~decision)
+            else:
+                unmask = rand_mask = None
+
+            if unmask is not None:
+                mask = mask ^ unmask
+            
+            mask_aatype = np.copy(aatype)
+            mask_aatype[mask] = self.mask_index
+            # copy the exp_angle_feats( in tensor)
+            mask_angle_feats = torch.clone(exp_angle_feats)
+            mask_angle_feats[mask] = 0.0 # clear the sidechain angle features for masked residues
+            mask_angle_feats[mask][:22] = torch.nn.functional.one_hot(self.mask_index, num_classes=22) # set the one-hot encoding of the mask token
+
+            if rand_mask is not None:
+                num_rand = rand_mask.sum()
+                if num_rand > 0:
+                    mask_aatype[rand_mask] = np.random.randint(0, 20, num_rand)
+                    mask_angle_feats[rand_mask, :22] = torch.nn.functional.one_hot(mask_aatype[rand_mask], num_classes=22)
+
+            feat["mask_aatype"] = torch.from_numpy(mask_aatype)
+            feat["mask_angle_feats"] = mask_angle_feats
+            feat["mask_targets"] = torch.from_numpy(feat["mask_targets"]).long()
+
+            return feat
+            
+
     def __getitem__(self, index):
         if torch.is_tensor(index):
             index = index.tolist()
@@ -194,6 +255,8 @@ class PairedDataset(Dataset):
                 feats["exp_all_atom_positions"] = exp_data["decoy_all_atom_positions"]
                 feats["exp_angle_feats"] = exp_data["decoy_angle_feats"]
                 feats["label_bb_rigid_tensors"] = exp_data["bb_rigid_tensors"]
+                feats = self._create_mask_view(feats)
+
 
         elif exp_data is None:
             feats = pred_data
