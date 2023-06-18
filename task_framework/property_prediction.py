@@ -1,7 +1,9 @@
+import pdb
+
 import torch
 import torch.nn as nn
-import pdb
 from torchdrug import layers
+
 
 class MultiBinaryClassifyHead(nn.Module):
     """
@@ -31,7 +33,9 @@ class MultiBinaryClassifyHead(nn.Module):
         # pdb.set_trace()
         node_repr = node_repr * seq_mask.unsqueeze(-1)
         # [B,c_s]
-        graph_repr = torch.sum(node_repr, dim=-2)
+        # graph_repr = torch.sum(node_repr, dim=-2)
+        # pdb.set_trace()
+        graph_repr = torch.sum(node_repr, dim=-2) / torch.sum(seq_mask, dim=-1, keepdim=True)
         pred = self.mlp(graph_repr) # [B, tasks] with logits
 
         return pred

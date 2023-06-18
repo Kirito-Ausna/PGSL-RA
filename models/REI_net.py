@@ -1,13 +1,13 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.encoders.gaussian_encoder import GaussianEncoder
+from data.data_transform import atom37_to_rigids
+from models._base import register_model
 from models.backbone.graphformer import TransformerEncoderWithPair
 from models.backbone.ipaformer import Ipaformer
-from models._base import register_model
-from data.data_transform import atom37_to_rigids
+from models.encoders.gaussian_encoder import GaussianEncoder
 from utils.rigid_utils import Rigid
+
 
 @register_model("REI_net")
 class REINet(nn.Module):

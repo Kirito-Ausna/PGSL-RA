@@ -5,6 +5,7 @@ mpl_logger = logging.getLogger("matplotlib")
 mpl_logger.setLevel(logging.WARNING)
 import argparse
 import os
+
 os.environ['NUMEXPR_MAX_THREADS'] = str(os.cpu_count())
 # from pytorch_lightning.callbacks import StochasticWeightAveraging
 import pdb
@@ -43,6 +44,14 @@ def main(args):
     # model config details now give the users to specify
     config = get_config(args.config_name)()
 
+    config_upload = {
+        "globals": dict(config.globals),
+        # convert to nested dict
+        "data_module": config.data.data_module.to_dict(),
+        "loss":dict(config.loss),
+        "train": dict(config.train)
+    }
+
     ## The Dataset interfaces are not the same and lack a unified model initialize interface
     #TODO: Make the interfaces the same √
     model_module = get_task(args.task)(config)
@@ -77,7 +86,7 @@ def main(args):
         callbacks.append(lr_monitor)
 
     if(args.ema):
-        ema = EMA(decay=0.999)
+        ema = EMA(decay=0.99)
         callbacks.append(ema)
     
     # swa = StochasticWeightAveraging(swa_lrs=1e-2)   
@@ -90,6 +99,7 @@ def main(args):
             id=args.wandb_id,
             version=args.wandb_id,
             project=args.wandb_project,
+            config=config_upload,
             **{"entity": args.wandb_entity,
                "group":args.wandb_group,
                "resume": "allow"},
@@ -126,8 +136,8 @@ def main(args):
         # extract the encoder part
         encoder_model_state_dict = {}
         for k, v in pretrain_model_state_dict.items():
-            if k.startswith("encoder."):
-                encoder_model_state_dict[k[len("encoder."):]] = v
+            if k.startswith("SAO_learner.encoder."):
+                encoder_model_state_dict[k[len("SAO_learner.encoder."):]] = v
         # pdb.set_trace()
         # model_module.heads.load_state_dict(encoder_model_state_dict, strict=False)
         model_module.encoder.load_state_dict(encoder_model_state_dict)
@@ -139,6 +149,9 @@ def main(args):
         ckpt_path=ckpt_path,
     )
     if args.test:
+        if args.ema:
+            best_checkpoint_path = mc.best_model_path
+            ema.on_load_checkpoint(best_checkpoint_path)
         trainer.test(
             model_module, 
             datamodule=data_module,

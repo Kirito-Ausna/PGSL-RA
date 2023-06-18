@@ -4,6 +4,7 @@ import ml_collections as mlc
 
 from config._base import register_config
 
+
 def set_inf(c, inf):
     for k, v in c.items():
         if isinstance(v, mlc.ConfigDict):
@@ -109,7 +110,7 @@ config = mlc.ConfigDict(
                     "num_workers": 32,
                 },
                 "val_dataloader":{
-                    "batch_size": 16,
+                    "batch_size": 8,
                     "num_workers": 32,
                 },
                 "predict_dataloader":{

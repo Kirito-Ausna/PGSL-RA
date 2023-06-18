@@ -37,7 +37,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_RPA/PSGL_REI_net/PGSL_REI_net_Small_mixup/checkpoints/RefineDiff-epoch174-delta_gdt_ts=0.016.ckpt",
+            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_SAO/SAO_REI_net/REI_net_SAO_test/checkpoints/final.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -68,9 +68,9 @@ config = mlc.ConfigDict(
                 "branch": "BP",
                 "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
-                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
+                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
                 "framework": "PGSL-RPA",
-                "test":{
+                "inference_setting":{
                     "plddt_cutoff": 70,
                     "tm_cutoff": 0.5,
                     "ground_truth": True,
@@ -119,7 +119,7 @@ config = mlc.ConfigDict(
                     "num_workers": 32,
                 },
                 "val_dataloader":{
-                    "batch_size": 16,
+                    "batch_size": 8,
                     "num_workers": 32,
                 },
                 "predict_dataloader":{

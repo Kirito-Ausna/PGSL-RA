@@ -3,24 +3,23 @@
 # from openfold.data.data_transforms import(
 #     atom37_to_torsion_angles
 # )
-from utils.residue_constants import (
-    restype_rigid_group_default_frame,
-)
-from utils.tensor_utils import (
-    batched_gather,
-)
+from utils.residue_constants import restype_rigid_group_default_frame
+from utils.tensor_utils import batched_gather
+
 NUM_RES = "num residues placeholder"
-# from openfold.utils.affine_utils import T
-from utils.affine_utils import T
-from utils import residue_constants as rc
-from utils.rigid_utils import Rigid, Rotation
-import torch
+import itertools
 # import torch_geometric, torch_cluster
 # from gvp.atom3d import _edge_features
 # import pdb
 import logging
+
 import numpy as np
-import itertools
+import torch
+
+from utils import residue_constants as rc
+# from openfold.utils.affine_utils import T
+from utils.affine_utils import T
+from utils.rigid_utils import Rigid, Rotation
 
 
 def _init_residue_constants(float_dtype, device):
