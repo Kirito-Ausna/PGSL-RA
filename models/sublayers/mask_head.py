@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils
-from utils import LayerNorm
+from . import utils
+from .utils import LayerNorm
 
 class MaskLMHead(nn.Module):
     """Head for masked language modeling."""

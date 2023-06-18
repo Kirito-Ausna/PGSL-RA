@@ -10,8 +10,8 @@ __pycache__
 /config/*
 *.tsv
 exp/analysis/*
-exp/data/*
+exp/data_analysis/*
 *.xlsx
-exp/analysis/*
-exp/data/data_process.ipynb
-exp/data/parsing_label.py
+exp/model_analysis/*
+exp/data_analysis/data_process.ipynb
+exp/data_analysis/parsing_label.py

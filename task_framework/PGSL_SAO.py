@@ -8,7 +8,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from task_framework.PGSL_vanilla import denoise_head
-from models.sublayers import MaskLMHead
+from models.sublayers.mask_head import MaskLMHead
 from utils.loss import backbone_loss
 
 # helper functions
@@ -224,7 +224,7 @@ class SAO(nn.Module):
                 outputs["mask_struct_pred"], outputs["exp_struct_proj"]
             ),
             "mif_loss": lambda: mif_loss(
-                outputs["mask_struct_emb"], batch["mask_targets"], outputs["masked_tokens"]
+                outputs["mask_pred_logits"], batch["mask_targets"], outputs["masked_tokens"]
             )
         }
 

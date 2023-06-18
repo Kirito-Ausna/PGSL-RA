@@ -52,13 +52,15 @@ class PairedDataset(Dataset):
         self.mask_prob = mask_setting.mask_prob
         self.leave_unmasked_prob = mask_setting.leave_unmasked_prob
         self.random_token_prob = mask_setting.random_token_prob
-        self.mask_index = 21 # 21 is the index of mask token in the vocabulary
+        # convert to tensor
+        self.mask_index = torch.tensor(21) # 21 is the index of mask token in the vocabulary
 
         self.exp_lmdb_path = None
         self.pred_lmdb_path = None
         self.exp_db = None
         self.pred_db = None
         self.pos_targets = None
+        self.error_targets = None
 
         self.stage = mode
 
@@ -83,6 +85,7 @@ class PairedDataset(Dataset):
             self.exp_lmdb_path = os.path.join(align_processed_path,"exp_struct", f"{self.task}_{self.mode}")
             self.pred_lmdb_path = os.path.join(align_processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
+            self.error_targets = os.path.join(self.pred_lmdb_path, "error_pdb_id.pkl")
         elif self.pred:
             self.pred_lmdb_path = os.path.join(processed_path, "pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
@@ -93,6 +96,14 @@ class PairedDataset(Dataset):
 
         with open(index_file, "rb") as fin:
             self.pdb_ids = pickle.load(fin)
+        if self.error_targets is not None: # remove the error targets with wrong alignment
+            with open(self.error_targets, "rb") as fin:
+                self.error_targets = pickle.load(fin)
+            new_pdb_ids = []
+            for pdb_id in self.pdb_ids:
+                if pdb_id not in self.error_targets:
+                    new_pdb_ids.append(pdb_id)
+            self.pdb_ids = new_pdb_ids
         
         self.crop_size = config[self.stage].crop_size
         self.crop_feats = dict(config.common.feat)
@@ -216,14 +227,20 @@ class PairedDataset(Dataset):
             mask_aatype[mask] = self.mask_index
             # copy the exp_angle_feats( in tensor)
             mask_angle_feats = torch.clone(exp_angle_feats)
-            mask_angle_feats[mask] = 0.0 # clear the sidechain angle features for masked residues
-            mask_angle_feats[mask][:22] = torch.nn.functional.one_hot(self.mask_index, num_classes=22) # set the one-hot encoding of the mask token
+            # pdb.set_trace()
+            try:
+                mask_angle_feats[mask] = 0.0 # clear the sidechain angle features for masked residues
+            except:
+                pdb.set_trace()
+            mask_angle_feats[mask][:,:22] = torch.nn.functional.one_hot(self.mask_index, num_classes=22) # set the one-hot encoding of the mask token
 
             if rand_mask is not None:
                 num_rand = rand_mask.sum()
                 if num_rand > 0:
                     mask_aatype[rand_mask] = np.random.randint(0, 20, num_rand)
-                    mask_angle_feats[rand_mask, :22] = torch.nn.functional.one_hot(mask_aatype[rand_mask], num_classes=22)
+                    rand_aatype = torch.from_numpy(mask_aatype[rand_mask])
+                    mask_angle_feats[rand_mask][:,:22] = torch.nn.functional.one_hot(rand_aatype, num_classes=22)
+
 
             feat["mask_aatype"] = torch.from_numpy(mask_aatype)
             feat["mask_angle_feats"] = mask_angle_feats
