@@ -103,7 +103,6 @@ class PairedDataset(Dataset):
         
         self._connect_db()
         if self.framework not in paired_eval_frameworks:
-        if self.framework not in paired_eval_frameworks:
             self.tsv_file = os.path.join(self.root_dir, f"nrPDB-{self.task}_annot.tsv")
             self.load_anontation(self.tsv_file, self.pdb_ids)
 
@@ -268,11 +267,9 @@ class PairedDataset(Dataset):
                 feats["exp_all_atom_positions"] = exp_data["decoy_all_atom_positions"]
                 feats["exp_angle_feats"] = exp_data["decoy_angle_feats"]
                 feats["label_bb_rigid_tensors"] = exp_data["bb_rigid_tensors"]
-                feats = self._create_mask_view(feats)
-
                 feats = self.crop_transform(feats)
                 # add mask after cropping
-                
+                feats = self._create_mask_view(feats)
 
         elif exp_data is None:
             feats = pred_data
