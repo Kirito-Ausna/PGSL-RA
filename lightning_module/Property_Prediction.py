@@ -6,10 +6,10 @@ import torch
 import torchmetrics
 from torch.nn import functional as F
 
-from task_framework.property_prediction import MultiBinaryClassifyHead
 from lightning_module._base import register_task
 from models._base import get_model
 from modules import losses, metrics
+from task_framework.property_prediction import MultiBinaryClassifyHead
 from utils.lr_scheduler import AlphaFoldLRScheduler
 
 
@@ -37,7 +37,7 @@ class MultiBClassifyWrapper(pl.LightningModule):
             modes.extend(["train", "val"])
         if self.config.data.dataset.test:
             modes.extend(["tm_test", "plddt_test"])
-        if self.config.data.dataset.test.ground_truth:
+        if self.config.data.dataset.inference_setting.ground_truth:
             modes.append("ground_truth_test")
         for _metric in self.metrics:
             if _metric == "auroc_micro":
@@ -85,8 +85,6 @@ class MultiBClassifyWrapper(pl.LightningModule):
         
         self.register_buffer("weight", task_weight)
         self.register_buffer("pos_weight", pos_weight)
-
-
 
     def forward(self, batch):
         # return self.heads(batch)

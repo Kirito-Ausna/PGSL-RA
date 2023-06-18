@@ -1,25 +1,23 @@
 import sys
+
 sys.path.append("../../data")
 sys.path.append("../../utils")
+import pdb
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .embedder import (
-    DecoyAngleEmbedder
-)
-from models.sublayers import utils
-from utils.residue_constants import (
-    restypes_with_x
-)
+
 import utils.residue_constants as rc
+from data.feature_pipeline import (build_unimol_angle_feats,
+                                   build_unimol_pair_feats)
+from models.sublayers import utils
+from utils.residue_constants import restypes_with_x
 
-from data.feature_pipeline import (
-    build_unimol_angle_feats,
-    build_unimol_pair_feats,
-)
-import pdb
+from .embedder import DecoyAngleEmbedder
 
-@torch.jit.script
+
+# @torch.jit.script
 def gaussian(x, mean, std):
     pi = 3.14159
     a = (2 * pi) ** 0.5

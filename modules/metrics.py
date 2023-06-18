@@ -1,7 +1,9 @@
-from torchmetrics import Metric
-from torchdrug.metrics import metric
 import pdb
+
 import torch
+from torchdrug.metrics import metric
+from torchmetrics import Metric
+
 
 class f1_max(Metric):
     def __init__(self):

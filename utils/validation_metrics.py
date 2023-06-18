@@ -1,5 +1,6 @@
 import torch
 
+
 def drmsd(structure_1, structure_2, mask=None):
     def prep_d(structure):
         d = structure[..., :, None, :] - structure[..., None, :, :]

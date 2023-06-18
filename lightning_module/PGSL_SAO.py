@@ -1,17 +1,20 @@
+import pdb
 from typing import Any, Optional
+
 import pytorch_lightning as pl
 import torch
-import pdb
+
 # from models.denoise_module import DenoiseModule
 from lightning_module._base import register_task
 from models._base import get_model
 from task_framework.PGSL_SAO import SAO
 from utils import residue_constants
-from utils.rigid_utils import Rigid
 from utils.loss import lddt_ca
 from utils.lr_scheduler import AlphaFoldLRScheduler
+from utils.rigid_utils import Rigid
 from utils.superimposition import superimpose
 from utils.validation_metrics import drmsd, gdt_ha, gdt_ts
+
 
 @register_task("PGSL_SAO")
 class PGSL_SAO(pl.LightningModule):

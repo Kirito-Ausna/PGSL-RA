@@ -1,5 +1,6 @@
-import sys
 import os
+import sys
+
 # from Manifold.openfold.data.input_pipeline import compose
 sys.path.append("..")
 import copy
@@ -13,13 +14,14 @@ import torch
 import torch.nn as nn
 
 from data import data_transform
+from data.pipeline_base import register_pipeline
 from utils import protein
 from utils import residue_constants as rc
 from utils.rigid_utils import Rigid, Rotation
 from utils.Utils import get_gnn_feature
 
-from .data_transform import atom37_to_torsion_angles, pseudo_beta_fn, atom37_to_rigid_tensors
-from data.pipeline_base import register_pipeline
+from .data_transform import (atom37_to_rigid_tensors, atom37_to_torsion_angles,
+                             pseudo_beta_fn)
 
 TensorDict = Dict[str, torch.Tensor]
 FeatureDict = Mapping[str, np.ndarray]
@@ -467,10 +469,10 @@ def process_features(
 def make_crop_transforms(common_cfg, mode_cfg):
     crop_feats = dict(common_cfg.feat)
     transforms = [
-        data_transform.random_crop_to_size(
-            mode_cfg.crop_size,
-            crop_feats
-        ),
+        # data_transform.random_crop_to_size(
+        #     mode_cfg.crop_size,
+        #     crop_feats
+        # ),
         data_transform.make_fixed_size(
             crop_feats,
             mode_cfg.crop_size

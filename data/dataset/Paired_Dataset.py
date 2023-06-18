@@ -1,19 +1,20 @@
 import csv
 import glob
 import os
-
 import pdb
+import pickle
 from typing import Dict, Mapping, Optional
 
+import lmdb
 import ml_collections as mlc
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchdrug import utils
 
+from data.data_transform import random_crop_to_size
 from data.dataset._base import register_dataset
-import lmdb
-import pickle
+
 FeatureDict = Mapping[str, np.ndarray]
 TensorDict = Dict[str, torch.Tensor]
 
@@ -59,6 +60,8 @@ class PairedDataset(Dataset):
         self.pred_db = None
         self.pos_targets = None
 
+        self.stage = mode
+
         if self.task == "GO":
             # should load labels and help find the lmdb files
             self.branch = config.dataset.branch
@@ -70,9 +73,11 @@ class PairedDataset(Dataset):
         if mode == "test":
             self.exp_lmdb_path = os.path.join(processed_path,"exp_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.exp_lmdb_path, "structures.lmdb-ids")
+            self.stage = "predict"
         elif mode in ["tm_test", "plddt_test"]:
             self.pred_lmdb_path = os.path.join(processed_path,"pred_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.pred_lmdb_path, "structures.lmdb-ids")
+            self.stage = "predict"
         elif self.paired and mode == "train" or (self.paired and mode == "eval" and self.framework in paired_eval_frameworks):
             # pdb.set_trace()
             self.exp_lmdb_path = os.path.join(align_processed_path,"exp_struct", f"{self.task}_{self.mode}")
@@ -84,14 +89,20 @@ class PairedDataset(Dataset):
         else:
             self.exp_lmdb_path = os.path.join(processed_path, "exp_struct", f"{self.task}_{self.mode}")
             index_file = os.path.join(self.exp_lmdb_path, "structures.lmdb-ids")
-    
+
+
         with open(index_file, "rb") as fin:
             self.pdb_ids = pickle.load(fin)
         
+        self.crop_size = config[self.stage].crop_size
+        self.crop_feats = dict(config.common.feat)
+        self.crop_transform = random_crop_to_size(self.crop_size, self.crop_feats)
+
         if self.debug:
             self.pdb_ids = self.pdb_ids[:100]
         
         self._connect_db()
+        if self.framework not in paired_eval_frameworks:
         if self.framework not in paired_eval_frameworks:
             self.tsv_file = os.path.join(self.root_dir, f"nrPDB-{self.task}_annot.tsv")
             self.load_anontation(self.tsv_file, self.pdb_ids)
@@ -228,6 +239,8 @@ class PairedDataset(Dataset):
         
         pname = self.pdb_ids[index]
         exp_data, pred_data = self._get_structure(pname)
+        # sequence_length = len(exp_data["decoy_seq_mask"])
+        
         feats = {}
 
         if exp_data is not None and pred_data is not None:
@@ -257,12 +270,19 @@ class PairedDataset(Dataset):
                 feats["label_bb_rigid_tensors"] = exp_data["bb_rigid_tensors"]
                 feats = self._create_mask_view(feats)
 
+                feats = self.crop_transform(feats)
+                # add mask after cropping
+                
 
         elif exp_data is None:
             feats = pred_data
         else:
             feats = exp_data
-    
+
+        # crop the features
+        sequence_length = feats["decoy_seq_mask"].shape[0]
+        if self.framework != "SAO" and self.crop_size is not None and sequence_length > self.crop_size:
+            feats = self.crop_transform(feats)
         # not PGSL pretraining step
         if self.pos_targets is not None:
             indices = self.pos_targets[index].unsqueeze(0)
