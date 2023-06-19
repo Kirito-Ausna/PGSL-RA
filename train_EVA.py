@@ -45,11 +45,11 @@ def main(args):
     config = get_config(args.config_name)()
 
     config_upload = {
-        "globals": dict(config.globals),
+        "globals": config.globals.to_dict(),
         # convert to nested dict
         "data_module": config.data.data_module.to_dict(),
-        "loss":dict(config.loss),
-        "train": dict(config.train)
+        "loss": config.loss.to_dict(),
+        "train": config.train.to_dict()
     }
 
     ## The Dataset interfaces are not the same and lack a unified model initialize interface
