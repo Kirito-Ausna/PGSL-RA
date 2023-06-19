@@ -47,13 +47,13 @@ class PairedDataset(Dataset):
         self.pred = config.dataset.pred # Use when paired is False
         self.root_dir = config.dataset.root_dir
         self.framework = config.dataset.framework
-
-        mask_setting = config.dataset.mask_setting
-        self.mask_prob = mask_setting.mask_prob
-        self.leave_unmasked_prob = mask_setting.leave_unmasked_prob
-        self.random_token_prob = mask_setting.random_token_prob
-        # convert to tensor
-        self.mask_index = torch.tensor(21) # 21 is the index of mask token in the vocabulary
+        if self.framework == "SAO":
+            mask_setting = config.dataset.mask_setting
+            self.mask_prob = mask_setting.mask_prob
+            self.leave_unmasked_prob = mask_setting.leave_unmasked_prob
+            self.random_token_prob = mask_setting.random_token_prob
+            # convert to tensor
+            self.mask_index = torch.tensor(21) # 21 is the index of mask token in the vocabulary
 
         self.exp_lmdb_path = None
         self.pred_lmdb_path = None
@@ -228,10 +228,7 @@ class PairedDataset(Dataset):
             # copy the exp_angle_feats( in tensor)
             mask_angle_feats = torch.clone(exp_angle_feats)
             # pdb.set_trace()
-            try:
-                mask_angle_feats[mask] = 0.0 # clear the sidechain angle features for masked residues
-            except:
-                pdb.set_trace()
+            mask_angle_feats[mask] = 0.0 # clear the sidechain angle features for masked residues
             mask_angle_feats[mask][:,:22] = torch.nn.functional.one_hot(self.mask_index, num_classes=22) # set the one-hot encoding of the mask token
 
             if rand_mask is not None:
@@ -284,7 +281,9 @@ class PairedDataset(Dataset):
                 feats["exp_all_atom_positions"] = exp_data["decoy_all_atom_positions"]
                 feats["exp_angle_feats"] = exp_data["decoy_angle_feats"]
                 feats["label_bb_rigid_tensors"] = exp_data["bb_rigid_tensors"]
-                feats = self.crop_transform(feats)
+                sequence_length = feats["decoy_seq_mask"].shape[0]
+                if self.crop_size is not None and sequence_length > self.crop_size:
+                    feats = self.crop_transform(feats)
                 # add mask after cropping
                 feats = self._create_mask_view(feats)
 
