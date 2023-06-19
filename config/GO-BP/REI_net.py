@@ -37,7 +37,7 @@ config = mlc.ConfigDict(
         },
         "downstream":{
             "encoder": "REI_net",
-            "encoder_checkpoint": "/huangyufei/PGSL-RPA/EVA_result/PGSL_SAO/SAO_REI_net/REI_net_SAO_test/checkpoints/final.ckpt",
+            "encoder_checkpoint": "/root/Generative-Models/PGSL-RA/EVA_result/PGSL_SAO/SAO_REI_net/REI_net_SAO_wo_mif/checkpoints/RefineDiff-epoch181-SAO_loss=0.443.ckpt",
             "head": {
                 "model_out_dim": encoder_embed_dim,
                 "task_num": 1943, #EC: 538, GO-CC: 320, GO-MF: 489, GO-BP: 1943
@@ -68,7 +68,7 @@ config = mlc.ConfigDict(
                 "branch": "BP",
                 "paired": False, # allow only one protein within each pair
                 "pred": False, # use predicted structure
-                "root_dir": "/huangyufei/Dataset/PGSL-RPA/",
+                "root_dir": "/usr/commondata/local_public/protein-datasets/AFDB_PGSL/",
                 "framework": "PGSL-RPA",
                 "inference_setting":{
                     "plddt_cutoff": 70,
@@ -184,14 +184,14 @@ config = mlc.ConfigDict(
             }
         },
         "loss": {
-    
+            "loss_type": "BCEWithLogitsLoss",
         },
         "train":{
             "base_lr": 0.,
             "max_lr": 1e-4,
-            "warmup_no_steps": 4300,
-            "start_decay_after_n_steps": 43000,
-            "decay_every_n_steps": 360
+            "warmup_no_steps": 3600,
+            "start_decay_after_n_steps": 36000,
+            "decay_every_n_steps": 240
         }
 
     }
